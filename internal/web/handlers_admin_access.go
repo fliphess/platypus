@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -104,12 +105,18 @@ func usersReturnTo(filter access.UserFilter, page int) string {
 type userData struct {
 	Detail access.UserDetail
 	Rules  []authz.Rule
-	// TeamRules groups each team's own rules, whether or not this user is in
-	// that team: the card describes the team, not the viewer.
-	TeamRules   map[int64][]access.TeamRule
-	AllTeams    []db.ListTeamsRow
-	AllPolicies []db.ListPoliciesRow
-	IsSelf      bool
+	// Lines are the user's attached teams, with the facts each line shows.
+	Lines []teamLine
+	// SelectableTeams are the teams a person can be added to by hand.
+	SelectableTeams []db.ListTeamsRow
+	AllPolicies     []db.ListPoliciesRow
+	IsSelf          bool
+}
+
+// teamLine is one attached team as the team editor shows it.
+type teamLine struct {
+	Team     db.Team
+	Policies int64
 }
 
 func (s *Server) adminUser(w http.ResponseWriter, r *http.Request) error {
@@ -133,14 +140,22 @@ func (s *Server) adminUser(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	teamRules, err := s.services.Access.TeamRules(r.Context())
-	if err != nil {
-		return err
+	counts := make(map[int64]int64, len(teams))
+	selectable := make([]db.ListTeamsRow, 0, len(teams))
+	for _, team := range teams {
+		counts[team.ID] = team.PolicyCount
+		if team.IDPGroup == nil {
+			selectable = append(selectable, team)
+		}
+	}
+	lines := make([]teamLine, 0, len(detail.Teams))
+	for _, team := range detail.Teams {
+		lines = append(lines, teamLine{Team: team, Policies: counts[team.ID]})
 	}
 	data := userData{
-		Detail: detail, Rules: rules, AllTeams: teams, AllPolicies: policies,
-		TeamRules: teamRules,
-		IsSelf:    id == viewerFrom(r.Context()).User.ID,
+		Detail: detail, Rules: rules, AllPolicies: policies,
+		Lines: lines, SelectableTeams: selectable,
+		IsSelf: id == viewerFrom(r.Context()).User.ID,
 	}
 	s.render(w, r, http.StatusOK, "admin_user", page{Title: detail.User.Label(), Tab: "admin", Data: data})
 	return nil
@@ -189,6 +204,204 @@ func (s *Server) setUserTeams(r *http.Request, id int64) error {
 		return err
 	}
 	return s.services.Access.SetUserTeams(r.Context(), id, teamIDs)
+}
+
+// changeMessage is the one sentence a confirmation shows: what is added and
+// what is removed, by name.
+func changeMessage(added, removed []string) string {
+	parts := make([]string, 0, 2)
+	if len(added) > 0 {
+		parts = append(parts, "Add: "+strings.Join(added, ", "))
+	}
+	if len(removed) > 0 {
+		parts = append(parts, "Remove: "+strings.Join(removed, ", "))
+	}
+	if len(parts) == 0 {
+		return "Nothing changes."
+	}
+	return strings.Join(parts, ". ") + "."
+}
+
+func namesByID(ids []int64, names map[int64]string) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, names[id])
+	}
+	sort.Strings(out)
+	return out
+}
+
+func previewUserPolicies(w http.ResponseWriter, r *http.Request, s *Server) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	ids, err := formIDs(r, "policy_id")
+	if err != nil {
+		return err
+	}
+	detail, err := s.services.Access.UserDetail(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	all, err := s.services.Access.Policies(r.Context(), "")
+	if err != nil {
+		return err
+	}
+	names := map[int64]string{}
+	for _, policy := range all {
+		names[policy.ID] = policy.Name
+	}
+	current := map[int64]bool{}
+	for _, policy := range detail.Policies {
+		current[policy.ID] = true
+	}
+	selected := map[int64]bool{}
+	for _, policyID := range ids {
+		selected[policyID] = true
+	}
+	var added, removed []int64
+	for policyID := range selected {
+		if !current[policyID] {
+			added = append(added, policyID)
+		}
+	}
+	for policyID := range current {
+		if !selected[policyID] {
+			removed = append(removed, policyID)
+		}
+	}
+	s.confirmPage(w, r, confirmSave{
+		Section: "users", Title: "Save these policies?",
+		Message: changeMessage(namesByID(added, names), namesByID(removed, names)),
+		Button:  "Save policies", Action: fmt.Sprintf("/admin/users/%d/policies", id),
+		Back: fmt.Sprintf("/admin/users/%d", id), Hidden: hiddenIDs("policy_id", ids),
+	})
+	return nil
+}
+
+func previewTeamPolicies(w http.ResponseWriter, r *http.Request, s *Server) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	ids, err := formIDs(r, "policy_id")
+	if err != nil {
+		return err
+	}
+	detail, err := s.services.Access.TeamDetail(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	all, err := s.services.Access.Policies(r.Context(), "")
+	if err != nil {
+		return err
+	}
+	names := map[int64]string{}
+	for _, policy := range all {
+		names[policy.ID] = policy.Name
+	}
+	current := map[int64]bool{}
+	for _, policy := range detail.Policies {
+		current[policy.ID] = true
+	}
+	selected := map[int64]bool{}
+	for _, policyID := range ids {
+		selected[policyID] = true
+	}
+	var added, removed []int64
+	for policyID := range selected {
+		if !current[policyID] {
+			added = append(added, policyID)
+		}
+	}
+	for policyID := range current {
+		if !selected[policyID] {
+			removed = append(removed, policyID)
+		}
+	}
+	s.confirmPage(w, r, confirmSave{
+		Section: "teams", Title: "Save these policies?",
+		Message: changeMessage(namesByID(added, names), namesByID(removed, names)),
+		Button:  "Save policies", Action: fmt.Sprintf("/admin/teams/%d/policies", id),
+		Back: fmt.Sprintf("/admin/teams/%d", id), Hidden: hiddenIDs("policy_id", ids),
+	})
+	return nil
+}
+
+func previewUserTeams(w http.ResponseWriter, r *http.Request, s *Server) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	ids, err := formIDs(r, "team_id")
+	if err != nil {
+		return err
+	}
+	detail, err := s.services.Access.UserDetail(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	teams, err := s.services.Access.Teams(r.Context(), "")
+	if err != nil {
+		return err
+	}
+	names := map[int64]string{}
+	for _, team := range teams {
+		names[team.ID] = team.Name
+	}
+	current := map[int64]bool{}
+	linked := false
+	for _, team := range detail.Teams {
+		if team.IDPGroup != nil {
+			// Membership comes from the identity provider: never shown as a change.
+			linked = true
+			continue
+		}
+		current[team.ID] = true
+	}
+	selected := map[int64]bool{}
+	for _, teamID := range ids {
+		selected[teamID] = true
+	}
+	var added, removed []int64
+	for teamID := range selected {
+		if !current[teamID] {
+			added = append(added, teamID)
+		}
+	}
+	for teamID := range current {
+		if !selected[teamID] {
+			removed = append(removed, teamID)
+		}
+	}
+	message := changeMessage(namesByID(added, names), namesByID(removed, names))
+	if linked {
+		message += " Group-linked teams stay as they are."
+	}
+	s.confirmPage(w, r, confirmSave{
+		Section: "users", Title: "Save these teams?", Message: message,
+		Button: "Save teams", Action: fmt.Sprintf("/admin/users/%d/teams", id),
+		Back: fmt.Sprintf("/admin/users/%d", id), Hidden: hiddenIDs("team_id", ids),
+	})
+	return nil
+}
+
+// confirmPage renders the page that shows what a save will change.
+func (s *Server) confirmPage(w http.ResponseWriter, r *http.Request, data confirmSave) {
+	s.render(w, r, http.StatusOK, "admin_confirm", page{Title: data.Title, Tab: "admin", Data: data})
+}
+
+func (s *Server) previewUserPolicies(w http.ResponseWriter, r *http.Request) error {
+	return previewUserPolicies(w, r, s)
+}
+
+func (s *Server) previewTeamPolicies(w http.ResponseWriter, r *http.Request) error {
+	return previewTeamPolicies(w, r, s)
+}
+
+func (s *Server) previewUserTeams(w http.ResponseWriter, r *http.Request) error {
+	return previewUserTeams(w, r, s)
 }
 
 func (s *Server) setUserPolicies(r *http.Request, id int64) error {
@@ -275,6 +488,9 @@ func teamInput(r *http.Request) access.TeamInput {
 type teamData struct {
 	Detail      access.TeamDetail
 	AllPolicies []db.ListPoliciesRow
+	// Candidates are the people who are not on the team yet, for the member
+	// dropdown.
+	Candidates []db.User
 }
 
 func (s *Server) adminTeam(w http.ResponseWriter, r *http.Request) error {
@@ -290,8 +506,22 @@ func (s *Server) adminTeam(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	s.render(w, r, http.StatusOK, "admin_team", page{Title: detail.Team.Name, Tab: "admin",
-		Data: teamData{Detail: detail, AllPolicies: policies}})
+	users, err := s.services.Access.Users(r.Context(), "")
+	if err != nil {
+		return err
+	}
+	members := make(map[int64]bool, len(detail.Members))
+	for _, member := range detail.Members {
+		members[member.ID] = true
+	}
+	candidates := make([]db.User, 0, len(users))
+	for _, user := range users {
+		if !members[user.ID] {
+			candidates = append(candidates, user)
+		}
+	}
+	data := teamData{Detail: detail, AllPolicies: policies, Candidates: candidates}
+	s.render(w, r, http.StatusOK, "admin_team", page{Title: detail.Team.Name, Tab: "admin", Data: data})
 	return nil
 }
 

@@ -69,11 +69,26 @@
   <p class="empty">{{if $t.IDPGroup}}Nobody from the group has logged in yet.{{else}}No members yet.{{end}}</p>
   {{- end}}
   {{- if not $t.IDPGroup}}
-  <label for="member-search">Add people <span class="hint">pick from the list, or type to narrow it</span></label>
-  <input id="member-search" type="search" name="q" autocomplete="off" placeholder="Who can join?"
-         hx-get="/admin/teams/{{$t.ID}}/candidates" hx-trigger="load, input changed delay:250ms, search" hx-target="#candidates">
-  <div id="member-messages" class="messages"></div>
-  <div id="candidates"></div>
+  <form class="choice-editor member-editor" data-choice-editor
+        hx-post="/admin/teams/{{$t.ID}}/members" hx-target="#member-messages"
+        method="post" action="/admin/teams/{{$t.ID}}/members">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <div class="choice-rows" data-choice-rows></div>
+    <template data-choice-template>
+      <div class="choice-row" data-choice-row>
+        <select name="user_id" data-choice-select aria-label="Person to add">
+          <option value="">Choose a person…</option>
+          {{- range .Candidates}}<option value="{{.ID}}">{{.Label}}{{with .Email}} · {{.}}{{end}}</option>{{end}}
+        </select>
+        <button type="button" class="remove-row" data-remove-choice aria-label="Remove this person" title="Remove this person">×</button>
+      </div>
+    </template>
+    <div id="member-messages" class="messages"></div>
+    <div class="actions">
+      <button type="button" class="button" data-add-choice>Add member</button>
+      <button type="submit" class="primary">Add to team</button>
+    </div>
+  </form>
   {{- end}}
 </div>
 
@@ -81,6 +96,8 @@
   <h2>Policies</h2>
   {{template "policy-editor" (dict
        "Action" (printf "/admin/teams/%d/policies" $t.ID)
+       "Preview" (printf "/admin/teams/%d/policies/preview" $t.ID)
+       "Form" "team-policies-form"
        "All" .AllPolicies
        "Selected" .Detail.Policies
        "CSRFToken" $.Viewer.Session.CSRFToken)}}

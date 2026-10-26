@@ -1,0 +1,18 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" .Section "Title" .Title)}}
+<div class="card">
+  <h2>{{.Title}}</h2>
+  <p>{{.Message}}</p>
+  <form method="post" action="{{.Action}}">
+    {{template "csrf" $.Viewer.Session.CSRFToken}}
+    {{.Hidden}}
+    <div class="actions">
+      <button type="submit" class="primary">{{.Button}}</button>
+      <a class="button" href="{{.Back}}">Cancel</a>
+    </div>
+  </form>
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}

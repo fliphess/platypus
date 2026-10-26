@@ -34,6 +34,9 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 900 
 const page = await context.newPage();
 page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") problems.push(`console ${m.type()}: ${m.text()}`); });
 page.on("pageerror", (e) => problems.push(`page error: ${e.message}`));
+page.on("response", (r) => { if (r.request().method() === "POST") console.log("POST", r.url(), r.status(), r.headers()["location"] ?? ""); });
+page.on("dialog", (d) => { console.log("DIALOG", d.type(), d.message()); d.dismiss().catch(() => {}); });
+
 
 const base = "http://admin.localhost:8090";
 const assertLocalTimes = async (selector, where) => {
@@ -156,9 +159,13 @@ await step("create a policy with the rule editor", async () => {
 });
 await step("assign the policy to the admin", async () => {
   await page.goto(base + "/admin/users/1");
-  await page.click("[data-policy-editor] [data-add-policy]");
-  await page.locator("[data-policy-select]").last().selectOption({ label: "Everything for admin" });
-  await page.click("button:has-text('Save policies')");
+  await page.click(".policy-editor [data-add-choice]");
+  await page.locator(".policy-editor [data-choice-select]").last().selectOption({ label: "Everything for admin" });
+  // Save goes through a confirmation page first.
+  await page.click(".policy-editor button:has-text('Save policies')");
+  await page.waitForURL("**/admin/users/1/policies/preview");
+  await page.waitForSelector("h2:has-text('Save these policies?')");
+  await page.click("form[action$='/admin/users/1/policies'] button[type=submit]");
   await page.waitForURL("**/admin/users/1?notice=saved");
 });
 await step("save and add another", async () => {
@@ -203,39 +210,25 @@ await step("a group-linked team takes its members from the login", async () => {
   await page.waitForURL("**/admin/teams/*?notice=created");
   const teamURL = new URL(page.url()).pathname;
 
-  await page.click("[data-policy-editor] [data-add-policy]");
-  await page.locator("[data-policy-select]").last().selectOption({ label: "Payments group" });
-  await page.click("button:has-text('Save policies')");
+  await page.click(".policy-editor [data-add-choice]");
+  await page.locator(".policy-editor [data-choice-select]").last().selectOption({ label: "Payments group" });
+  await page.click(".policy-editor button:has-text('Save policies')");
+  await page.waitForURL("**/policies/preview");
+  await page.waitForSelector("h2:has-text('Save these policies?')");
+  await page.click("form[action$='/policies'] button[type=submit]");
   await page.waitForURL("**" + teamURL + "?notice=saved");
 
   // The user's Teams card is one table: checkbox, team, and that team's rules.
   await page.goto(base + "/admin/users/1");
-  const teams = await page.evaluate(() => {
-    const table = document.querySelector(".teams-table");
-    if (!table) return { error: "no teams table" };
-    // Only the teams table's own row: the rules disclosure holds a nested
-    // table whose headers must not be counted here.
-    const heads = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
-    const cells = Array.from(table.querySelectorAll(":scope > tbody > tr:first-child > td"));
-    return {
-      headers: heads.length,
-      cells: cells.length,
-      checkboxes: table.querySelectorAll("input[type=checkbox][name=team_id]").length,
-      aligned: heads.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2),
-    };
-  });
-  if (teams.error || teams.headers !== 3 || teams.cells !== 3 || teams.checkboxes < 1 || !teams.aligned) {
-    throw new Error(`the teams card is not a checkbox/policies/rules table: ${JSON.stringify(teams)}`);
-  }
   // The policy editor is one line per attached policy, each a dropdown.
   const policyEditor = await page.evaluate(() => {
-    const form = document.querySelector("[data-policy-editor]");
+    const form = document.querySelector(".policy-editor");
     if (!form) return { error: "no policy editor" };
-    const selects = Array.from(form.querySelectorAll("[data-policy-select]"));
+    const selects = Array.from(form.querySelectorAll("[data-choice-select]"));
     return {
-      rows: form.querySelectorAll("[data-policy-row]").length,
+      rows: form.querySelectorAll("[data-choice-row]").length,
       selects: selects.length,
-      add: Boolean(form.querySelector("[data-add-policy]")),
+      add: Boolean(form.querySelector("[data-add-choice]")),
       chosen: selects.map((select) => select.value).filter(Boolean),
     };
   });
@@ -243,9 +236,9 @@ await step("a group-linked team takes its members from the login", async () => {
     throw new Error(`the policy editor is not a line per policy: ${JSON.stringify(policyEditor)}`);
   }
   // A new line starts empty; every already attached policy is disabled in it.
-  await page.click("[data-policy-editor] [data-add-policy]");
+  await page.click(".policy-editor [data-add-choice]");
   const added = await page.evaluate(() => {
-    const selects = Array.from(document.querySelectorAll("[data-policy-select]"));
+    const selects = Array.from(document.querySelectorAll(".policy-editor [data-choice-select]"));
     const last = selects.at(-1);
     return {
       value: last.value,
@@ -256,32 +249,13 @@ await step("a group-linked team takes its members from the login", async () => {
   if (added.value !== "" || !added.attached.every((id) => added.disabled.includes(id))) {
     throw new Error(`a new policy line offers policies that are already attached: ${JSON.stringify(added)}`);
   }
-  await page.locator("[data-policy-row]").last().locator("[data-remove-row]").click();
-  // Rules open as a full-width row beneath the team, not inside its cell.
-  const rulesToggle = page.locator("[data-row-toggle][aria-controls^='team-rules-']").first();
-  const rulesRowId = await rulesToggle.getAttribute("aria-controls");
-  await rulesToggle.click();
-  const rules = await page.evaluate((id) => {
-    const row = document.getElementById(id);
-    const table = row?.querySelector(".rules-table");
-    return {
-      hidden: row?.hasAttribute("hidden"),
-      spans: row?.querySelector("td")?.getAttribute("colspan"),
-      rows: table ? table.querySelectorAll("tbody tr").length : 0,
-      width: row?.querySelector("td")?.clientWidth ?? 0,
-      tableWidth: table ? Math.round(table.getBoundingClientRect().width) : 0,
-    };
-  }, rulesRowId);
-  // The table fills the cell's content box: the small difference is the cell
-  // padding on either side.
-  if (rules.hidden || rules.spans !== "3" || rules.rows < 1 || rules.tableWidth < rules.width - 30) {
-    throw new Error(`the team's rules row is not a full-width table: ${JSON.stringify(rules)}`);
-  }
-
+  await page.locator(".policy-editor [data-choice-row]").last().locator("[data-remove-choice]").click();
+  // The team editor is a line per team, with the remove button beside the
+  // select (never wrapped to the next line).
   // The team page says where members come from and offers no manual changes.
   await page.goto(base + teamURL);
   await page.waitForSelector(".alert.info:has-text('Members come from the identity-provider group')");
-  if (await page.locator("#member-search").count()) throw new Error("a linked team offers manual members");
+  if (await page.locator(".member-editor").count()) throw new Error("a linked team offers manual members");
   await shot(page, "04b-group-team");
 
   // The editor's login reports the payments group (the dev proxy sets the

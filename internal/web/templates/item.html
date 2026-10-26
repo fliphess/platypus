@@ -83,7 +83,7 @@
   <form hx-post="/{{$kind}}/note" hx-target="find .messages" method="post" action="/{{$kind}}/note">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
     <input type="hidden" name="name" value="{{$d.Name}}">
-    <label for="note">Visible to everyone who can see this item. Plain text only; never put values here.</label>
+    <label for="note">Visible to everyone who can see this item. Plain text only; never put secrets here.</label>
     <textarea id="note" name="note" maxlength="2000" rows="3">{{with $d.Note}}{{.Body}}{{end}}</textarea>
     <div class="messages"></div>
     <div class="actions"><button type="submit">Save note</button></div>

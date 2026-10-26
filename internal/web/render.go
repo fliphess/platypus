@@ -439,6 +439,27 @@ type confirmAction struct {
 	Form    string
 }
 
+// confirmSave is the data of the confirmation page a save goes through first.
+type confirmSave struct {
+	Section string
+	Title   string
+	Message string
+	Button  string
+	Action  string
+	Back    string
+	Hidden  template.HTML
+}
+
+// hiddenIDs renders the selected ids as hidden form fields for the save.
+func hiddenIDs(name string, ids []int64) template.HTML {
+	var out strings.Builder
+	for _, id := range ids {
+		fmt.Fprintf(&out, `<input type="hidden" name="%s" value="%d">`, name, id)
+	}
+	//nolint:gosec // a fixed field name and integer ids
+	return template.HTML(out.String())
+}
+
 // count writes a number with the right noun: "1 team", "2 teams".
 func count(n int, singular, plural string) string {
 	if n == 1 {

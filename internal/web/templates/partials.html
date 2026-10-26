@@ -148,26 +148,27 @@
        dropdown only offers policies not attached elsewhere. Data: Action,
        All, Selected, CSRFToken. */}}
 {{define "policy-editor"}}
-<form class="policy-editor" data-policy-editor hx-post="{{.Action}}" hx-target="find .messages" method="post" action="{{.Action}}">
+<form id="{{.Form}}" class="choice-editor policy-editor" data-choice-editor
+      method="post" action="{{.Preview}}">
   {{template "csrf" .CSRFToken}}
   {{- if .All}}
-  <div class="policy-rows" data-policy-rows>
+  <div class="choice-rows" data-choice-rows>
     {{- range .Selected}}{{$current := .}}
-    <div class="policy-row" data-policy-row>
+    <div class="choice-row" data-choice-row>
       {{template "policy-select" (dict "All" $.All "Current" $current.ID "Label" $current.Name)}}
-      <button type="button" class="remove-row" data-remove-row aria-label="Remove {{$current.Name}}" title="Remove this policy">×</button>
+      <button type="button" class="remove-row" data-remove-choice aria-label="Remove {{$current.Name}}" title="Remove this policy">×</button>
     </div>
     {{- end}}
   </div>
-  <template data-policy-template>
-    <div class="policy-row" data-policy-row>
+  <template data-choice-template>
+    <div class="choice-row" data-choice-row>
       {{template "policy-select" (dict "All" .All "Current" 0 "Label" "")}}
-      <button type="button" class="remove-row" data-remove-row aria-label="Remove this policy" title="Remove this policy">×</button>
+      <button type="button" class="remove-row" data-remove-choice aria-label="Remove this policy" title="Remove this policy">×</button>
     </div>
   </template>
   <div class="messages"></div>
   <div class="actions">
-    <button type="button" class="button" data-add-policy>Add policy</button>
+    <button type="button" class="button" data-add-choice>Add policy</button>
     <button type="submit" class="primary">Save policies</button>
   </div>
   {{- else}}
@@ -177,8 +178,56 @@
 {{end}}
 
 {{define "policy-select"}}
-<select name="policy_id" data-policy-select aria-label="{{with .Label}}Policy {{.}}{{else}}Policy{{end}}">
+<select name="policy_id" data-choice-select aria-label="{{with .Label}}Policy {{.}}{{else}}Policy{{end}}">
   <option value="">Choose a policy…</option>
+  {{- range .All}}<option value="{{.ID}}"{{if eq .ID $.Current}} selected{{end}}>{{.Name}}</option>{{end}}
+</select>
+{{end}}
+
+{{/* The team editor: attached teams are lines with a dropdown, exactly like
+       the policy editor. Group-linked teams are fixed lines, because their
+       membership comes from the identity provider. */}}
+{{define "team-editor"}}
+<form id="{{.Form}}" class="choice-editor team-editor" data-choice-editor
+      method="post" action="{{.Preview}}">
+  {{template "csrf" .CSRFToken}}
+  <div class="choice-rows" data-choice-rows>
+    {{- range .Lines}}{{$line := .}}
+    <div class="choice-row" data-choice-row>
+      {{- if $line.Team.IDPGroup}}
+      <span class="choice-label">{{$line.Team.Name}}</span>
+      <span class="badge">{{$line.Team.IDPGroup}}</span>
+      {{- else}}
+      {{template "team-select" (dict "All" $.All "Current" $line.Team.ID "Label" $line.Team.Name)}}
+      {{- end}}
+      <span class="muted small choice-meta">{{$line.Policies}} {{if eq $line.Policies 1}}policy{{else}}policies{{end}}</span>
+      {{- if not $line.Team.IDPGroup}}
+      <button type="button" class="remove-row" data-remove-choice aria-label="Remove {{$line.Team.Name}}" title="Remove this team">×</button>
+      {{- end}}
+    </div>
+    {{- end}}
+  </div>
+  {{- if .All}}
+  <template data-choice-template>
+    <div class="choice-row" data-choice-row>
+      {{template "team-select" (dict "All" .All "Current" 0 "Label" "")}}
+      <button type="button" class="remove-row" data-remove-choice aria-label="Remove this team" title="Remove this team">×</button>
+    </div>
+  </template>
+  <div class="messages"></div>
+  <div class="actions">
+    <button type="button" class="button" data-add-choice>Add team</button>
+    <button type="submit" class="primary">Save teams</button>
+  </div>
+  {{- else}}
+  <p class="muted small">There are no unlinked teams to choose from. <a href="/admin/teams">Create one</a>, or manage linked teams in the identity provider.</p>
+  {{- end}}
+</form>
+{{end}}
+
+{{define "team-select"}}
+<select name="team_id" data-choice-select aria-label="{{with .Label}}Team {{.}}{{else}}Team{{end}}">
+  <option value="">Choose a team…</option>
   {{- range .All}}<option value="{{.ID}}"{{if eq .ID $.Current}} selected{{end}}>{{.Name}}</option>{{end}}
 </select>
 {{end}}

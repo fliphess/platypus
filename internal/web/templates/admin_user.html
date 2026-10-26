@@ -42,60 +42,13 @@
 
 <div class="card">
   <h2>Teams</h2>
-  {{- if .AllTeams}}
-  <form hx-post="/admin/users/{{$u.ID}}/teams" hx-target="find .messages" method="post" action="/admin/users/{{$u.ID}}/teams">
-{{template "csrf" $.Viewer.Session.CSRFToken}}
-    <table class="teams-table">
-      <thead>
-        <tr><th>Team</th><th>Policies</th><th>Rules</th></tr>
-      </thead>
-      <tbody>
-        {{- range .AllTeams}}{{$team := .}}
-        {{- $selected := false}}
-        {{- range $data.Detail.Teams}}{{if eq .ID $team.ID}}{{$selected = true}}{{end}}{{end}}
-        {{- $teamRules := index $data.TeamRules $team.ID}}
-        <tr>
-          <td class="team-cell">
-            <input type="checkbox" name="team_id" value="{{.ID}}" id="team-{{.ID}}"
-                   {{- if $selected}} checked{{end}}{{- if .IDPGroup}} disabled{{end}}>
-            <label for="team-{{.ID}}">{{.Name}}</label>
-            {{- with .IDPGroup}} <span class="badge">{{.}}</span>{{end}}
-          </td>
-          <td class="state-cell">{{.PolicyCount}} {{if eq .PolicyCount 1}}policy{{else}}policies{{end}}</td>
-          <td class="team-rules">
-            {{- if $teamRules}}
-            <button type="button" class="link-button" data-row-toggle aria-expanded="false"
-                    aria-controls="team-rules-{{.ID}}">{{len $teamRules}} rule{{if ne (len $teamRules) 1}}s{{end}}</button>
-            {{- else}}<span class="muted">no rules</span>{{end}}
-          </td>
-        </tr>
-        {{- if $teamRules}}
-        <tr class="detail-row" id="team-rules-{{.ID}}" hidden>
-          <td colspan="3">
-            <table class="rules-table">
-              <thead><tr><th>Pattern</th><th>Permissions</th><th>Policy</th></tr></thead>
-              <tbody>
-                {{- range $teamRules}}
-                <tr>
-                  <td class="mono rule-pattern">{{.Pattern}}</td>
-                  <td class="rule-perms">{{permissions .Permissions}}</td>
-                  <td class="rule-policy muted">{{.Policy}}</td>
-                </tr>
-                {{- end}}
-              </tbody>
-            </table>
-          </td>
-        </tr>
-        {{- end}}
-        {{- end}}
-      </tbody>
-    </table>
-    <div class="messages"></div>
-    <div class="actions"><button type="submit">Save teams</button></div>
-  </form>
-  {{- else}}
-  <p class="muted">There are no teams yet. <a href="/admin/teams">Create one</a>.</p>
-  {{- end}}
+  {{template "team-editor" (dict
+       "Action" (printf "/admin/users/%d/teams" $u.ID)
+       "Preview" (printf "/admin/users/%d/teams/preview" $u.ID)
+       "Form" "user-teams-form"
+       "Lines" .Lines
+       "All" .SelectableTeams
+       "CSRFToken" $.Viewer.Session.CSRFToken)}}
 </div>
 
 <div class="card">
@@ -103,6 +56,8 @@
   <p class="muted small">For people without a team. Policies through teams are listed below under effective rules.</p>
   {{template "policy-editor" (dict
        "Action" (printf "/admin/users/%d/policies" $u.ID)
+       "Preview" (printf "/admin/users/%d/policies/preview" $u.ID)
+       "Form" "user-policies-form"
        "All" .AllPolicies
        "Selected" .Detail.Policies
        "CSRFToken" $.Viewer.Session.CSRFToken)}}

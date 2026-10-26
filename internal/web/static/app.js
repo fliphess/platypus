@@ -239,13 +239,13 @@
   }
 
   // ---------------------------------------------------------------------
-  // Policy editor: attached policies are lines with a dropdown. A dropdown
-  // only offers policies not already chosen on another line.
+  // Choice editor: attached things (policies, teams) are lines with a
+  // dropdown. A dropdown only offers choices not used on another line.
   // ---------------------------------------------------------------------
-  function initPolicyEditor(form) {
+  function initChoiceEditor(form) {
     if (form.dataset.ready) return;
     form.dataset.ready = "true";
-    const selects = () => Array.from(form.querySelectorAll("[data-policy-select]"));
+    const selects = () => Array.from(form.querySelectorAll("[data-choice-select]"));
     const sync = () => {
       const chosen = selects().map((select) => select.value).filter(Boolean);
       selects().forEach((select) => {
@@ -257,21 +257,21 @@
       });
     };
     form.addEventListener("change", (event) => {
-      if (event.target.matches("[data-policy-select]")) sync();
+      if (event.target.matches("[data-choice-select]")) sync();
     });
     form.addEventListener("click", (event) => {
-      if (event.target.closest("[data-add-policy]")) {
-        const template = form.querySelector("template[data-policy-template]");
-        const rows = form.querySelector("[data-policy-rows]");
+      if (event.target.closest("[data-add-choice]")) {
+        const template = form.querySelector("template[data-choice-template]");
+        const rows = form.querySelector("[data-choice-rows]");
         if (!template || !rows) return;
         rows.append(template.content.firstElementChild.cloneNode(true));
         sync();
         selects().at(-1)?.focus();
         return;
       }
-      const remove = event.target.closest("[data-remove-row]");
+      const remove = event.target.closest("[data-remove-choice]");
       if (remove) {
-        remove.closest("[data-policy-row]")?.remove();
+        remove.closest("[data-choice-row]")?.remove();
         sync();
       }
     });
@@ -480,7 +480,7 @@
     localizeTimes();
     document.querySelectorAll("[data-value-editor]:not([data-ready])").forEach(initValueEditor);
     document.querySelectorAll("[data-rule-editor]").forEach(initRuleEditor);
-    document.querySelectorAll("[data-policy-editor]").forEach(initPolicyEditor);
+    document.querySelectorAll("[data-choice-editor]").forEach(initChoiceEditor);
     hideRevealedValuesLater(document);
     dismissToasts();
     initToggles(document);

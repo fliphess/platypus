@@ -108,7 +108,9 @@ func (s *Server) adminRoutes() []route {
 		{"POST /admin/users/{id}/admin", s.userAction(s.setUserAdmin)},
 		{"POST /admin/users/{id}/disabled", s.userAction(s.setUserDisabled)},
 		{"POST /admin/users/{id}/unlock", s.userAction(s.unlockUser)},
+		{"POST /admin/users/{id}/teams/preview", s.previewUserTeams},
 		{"POST /admin/users/{id}/teams", s.userAction(s.setUserTeams)},
+		{"POST /admin/users/{id}/policies/preview", s.previewUserPolicies},
 		{"POST /admin/users/{id}/policies", s.userAction(s.setUserPolicies)},
 
 		{"GET /admin/teams", s.adminTeams},
@@ -116,6 +118,7 @@ func (s *Server) adminRoutes() []route {
 		{"POST /admin/teams", s.createTeam},
 		{"GET /admin/teams/{id}", s.adminTeam},
 		{"POST /admin/teams/{id}", s.teamAction(s.updateTeam)},
+		{"POST /admin/teams/{id}/policies/preview", s.previewTeamPolicies},
 		{"POST /admin/teams/{id}/policies", s.teamAction(s.setTeamPolicies)},
 		{"GET /admin/teams/{id}/candidates", s.teamCandidates},
 		{"POST /admin/teams/{id}/members", s.teamAction(s.addTeamMember)},
