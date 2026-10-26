@@ -9,10 +9,14 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 
-ARG TARGETARCH=arm64
+# TARGETARCH is set by buildx for multi-platform builds. Compose's build does
+# not set it, so fall back to the build container's architecture: a hardcoded
+# arm64 produced unrunnable images on amd64 hosts (exec format error).
+ARG TARGETARCH
 ARG VERSION=dev
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH}
-RUN go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/platypus ./cmd/platypus
+ENV CGO_ENABLED=0 GOOS=linux
+RUN GOARCH="${TARGETARCH:-$(go env GOARCH)}" \
+    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/platypus ./cmd/platypus
 
 # Stage 2: nothing but the binary, the runtime files and CA certificates.
 FROM scratch
