@@ -959,17 +959,18 @@ await step("visual regression", async () => {
     document.documentElement.dataset.theme = "light";
   });
 
-  // Stable targets within the run: derive the detail URLs from the lists.
-  await page.goto(base + "/admin/teams");
-  const teamHref = await page.getAttribute("#team-list a.cell-name", "href");
+  // Stable targets within the run: derive the policy URL from the list.
   await page.goto(base + "/admin/policies");
   const policyHref = await page.getAttribute("#policy-list a.cell-name", "href");
   const targets = [
     ["ssm", "/ssm", ".items-table"],
     ["users", "/admin/users", ".people-table"],
-    ["team", teamHref, ".policy-editor"],
+    // The team page is not a pixel target: linked membership materialises at
+    // login, so the member list can legitimately differ between runs.
     ["policy", policyHref, ".rule-row"],
-    ["audit", "/admin/audit", ".audit-table"],
+    // The audit trail is deliberately not a pixel target: every action logs an
+    // event, so any test change alters its rows. Its layout is covered by the
+    // table and column guards instead.
     ["docs", "/docs", ".docs article"],
   ];
 
