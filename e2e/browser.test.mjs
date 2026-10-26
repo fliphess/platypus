@@ -870,6 +870,80 @@ await step("documentation screenshots", async () => {
   await shoot("12-docs", "/docs", ".docs article");
 });
 
+await step("visual regression", async () => {
+  if (process.env.VISUAL !== "1") return;
+  const { PNG } = await import("pngjs");
+  const { default: pixelmatch } = await import("pixelmatch");
+  const fs = await import("node:fs");
+  const dir = "/work/visual";
+  fs.mkdirSync(dir, { recursive: true });
+  const update = process.env.VISUAL_UPDATE === "1";
+
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.evaluate(() => {
+    localStorage.setItem("platypus-theme", "light");
+    document.documentElement.dataset.theme = "light";
+  });
+
+  // Stable targets within the run: derive the detail URLs from the lists.
+  await page.goto(base + "/admin/teams");
+  const teamHref = await page.getAttribute("#team-list a.cell-name", "href");
+  await page.goto(base + "/admin/policies");
+  const policyHref = await page.getAttribute("#policy-list a.cell-name", "href");
+  const targets = [
+    ["ssm", "/ssm", ".items-table"],
+    ["users", "/admin/users", ".people-table"],
+    ["team", teamHref, ".policy-editor"],
+    ["policy", policyHref, ".rule-row"],
+    ["audit", "/admin/audit", ".audit-table"],
+    ["docs", "/docs", ".docs article"],
+  ];
+
+  const failures = [];
+  let compared = 0;
+  for (const width of [1280, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [name, path, selector] of targets) {
+      await page.goto(base + path);
+      await page.waitForSelector(selector);
+      await page.evaluate(() => {
+        // Times are the only content that changes between identical runs.
+        document.querySelectorAll("time").forEach((el) => { el.textContent = "2026-01-02 03:04"; });
+        document.querySelectorAll(".status-strip, .toast").forEach((el) => el.remove());
+      });
+      const shot = await page.screenshot();
+      const file = `${dir}/${name}-${width}.png`;
+      if (update) {
+        fs.writeFileSync(file, shot);
+        continue;
+      }
+      if (!fs.existsSync(file)) {
+        failures.push(`${name}-${width}: no baseline (run make visual-update)`);
+        continue;
+      }
+      const fresh = PNG.sync.read(shot);
+      const baseline = PNG.sync.read(fs.readFileSync(file));
+      if (fresh.width !== baseline.width || fresh.height !== baseline.height) {
+        failures.push(`${name}-${width}: size ${fresh.width}x${fresh.height} vs ${baseline.width}x${baseline.height}`);
+        continue;
+      }
+      const diff = new PNG({ width: fresh.width, height: fresh.height });
+      const pixels = pixelmatch(fresh.data, baseline.data, diff.data, fresh.width, fresh.height, { threshold: 0.1 });
+      compared += 1;
+      if (pixels > 60) {
+        fs.writeFileSync(`/work/shots/visual-${name}-${width}.png`, PNG.sync.write(diff));
+        failures.push(`${name}-${width}: ${pixels} pixels differ (see shots/visual-${name}-${width}.png)`);
+      }
+    }
+  }
+  if (update) {
+    console.log(`visual baselines updated (${compared} compared)`);
+    return;
+  }
+  if (failures.length > 0) throw new Error(`visual changes: ${failures.join("; ")}`);
+  console.log(`visual: ${compared} screenshots match`);
+});
+
 await step("oidc: log in at the identity provider", async () => {
   await oidcPage.goto(oidcBase + "/me");
   await oidcPage.waitForSelector("input[name=login]");

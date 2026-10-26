@@ -44,6 +44,10 @@ Platypus loads all three from disk at startup; `PLATYPUS_DOCS_DIR`,
   when it is stale.
 - `make verify` is the gate: generated code, vendored files, tests, sqlfluff,
   the stylesheet check and the browser suite.
+- `make visual` compares six views at 1280 and 1024 against the baselines in
+  `e2e/visual/`; `make visual-update` regenerates them. Times are normalised in
+  the captures because they are the only content that changes between runs.
+- `make screenshots` refreshes the documentation images in `docs/images/`.
 - Tests: `make test-deps && make test`. Database tests get a fresh database
   each (`dbtest.New`); AWS tests run against ministack.
 

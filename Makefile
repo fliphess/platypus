@@ -112,6 +112,14 @@ e2e: ## Run the browser tests (Playwright in Docker) against a fresh stack
 verify: generate-check vendored-check test sqlfluff css-check e2e ## Everything CI must pass before a change is done
 	golangci-lint run ./...
 
+.PHONY: visual
+visual: ## Compare the UI against the committed visual baselines
+	VISUAL=1 ./e2e/run.sh
+
+.PHONY: visual-update
+visual-update: ## Regenerate the visual baselines (review the diff before committing)
+	VISUAL=1 VISUAL_UPDATE=1 ./e2e/run.sh
+
 .PHONY: screenshots
 screenshots: ## Capture documentation screenshots into docs/images
 	DOCS_SHOTS=1 ./e2e/run.sh
