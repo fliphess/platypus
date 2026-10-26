@@ -83,7 +83,7 @@ func (s *Server) orphanedNotes(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	lastPage := lastPage(total, size)
 	first := (pageNumber-1)*size + 1
 	if len(notes) == 0 {
 		first = 0
@@ -133,14 +133,29 @@ func parseAuditFilter(r *http.Request) (auditFilterForm, audit.Filter) {
 	filter := audit.Filter{
 		ActorEmail: form.Actor, Action: form.Action, Outcome: form.Outcome, Search: form.Search,
 	}
-	if t, err := time.Parse("2006-01-02", form.Since); err == nil {
+	// The date controls describe the calendar days the user sees, so parse
+	// them in the same zone the timestamps are rendered in.
+	loc, _ := timeZoneFor(r)
+	if t, ok := parseAuditDay(form.Since, loc); ok {
 		filter.Since = &t
 	}
-	if t, err := time.Parse("2006-01-02", form.Until); err == nil {
+	if t, ok := parseAuditDay(form.Until, loc); ok {
 		end := t.AddDate(0, 0, 1) // until includes the whole day
 		filter.Until = &end
 	}
 	return form, filter
+}
+
+// parseAuditDay reads a date control in the display zone.
+func parseAuditDay(value string, loc *time.Location) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	parsed, err := time.ParseInLocation("2006-01-02", value, loc)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
@@ -151,7 +166,7 @@ func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	lastPage := lastPage(total, size)
 	query := auditQuery(form)
 	data := auditData{
 		Filter: form, Events: events, Actions: audit.Actions, Outcomes: audit.Outcomes,

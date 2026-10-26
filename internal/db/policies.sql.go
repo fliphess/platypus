@@ -354,58 +354,6 @@ func (q *Queries) ListPolicyUsers(ctx context.Context, policyID int64) ([]User, 
 	return items, nil
 }
 
-const listRulesForTeams = `-- name: ListRulesForTeams :many
-SELECT t.id AS team_id, r.kind, r.pattern, r.can_list, r.can_create, r.can_edit, r.can_reveal,
-       p.name AS policy_name
-FROM teams t
-INNER JOIN team_policies tp ON t.id = tp.team_id
-INNER JOIN policies p ON tp.policy_id = p.id
-INNER JOIN policy_rules r ON p.id = r.policy_id
-ORDER BY t.name, p.name, r.kind, r.pattern
-`
-
-type ListRulesForTeamsRow struct {
-	TeamID     int64
-	Kind       string
-	Pattern    string
-	CanList    bool
-	CanCreate  bool
-	CanEdit    bool
-	CanReveal  bool
-	PolicyName string
-}
-
-// Every rule that applies to a user: through policies assigned to the user
-// directly (team_name is empty) and through the user's teams.
-func (q *Queries) ListRulesForTeams(ctx context.Context) ([]ListRulesForTeamsRow, error) {
-	rows, err := q.db.Query(ctx, listRulesForTeams)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListRulesForTeamsRow{}
-	for rows.Next() {
-		var i ListRulesForTeamsRow
-		if err := rows.Scan(
-			&i.TeamID,
-			&i.Kind,
-			&i.Pattern,
-			&i.CanList,
-			&i.CanCreate,
-			&i.CanEdit,
-			&i.CanReveal,
-			&i.PolicyName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRulesForUser = `-- name: ListRulesForUser :many
 SELECT r.kind, r.pattern, r.can_list, r.can_create, r.can_edit, r.can_reveal,
        p.name AS policy_name, ''::text AS team_name
@@ -436,6 +384,8 @@ type ListRulesForUserRow struct {
 	TeamName   string
 }
 
+// Every rule that applies to a user: through policies assigned to the user
+// directly (team_name is empty) and through the user's teams.
 func (q *Queries) ListRulesForUser(ctx context.Context, userID int64) ([]ListRulesForUserRow, error) {
 	rows, err := q.db.Query(ctx, listRulesForUser, userID)
 	if err != nil {

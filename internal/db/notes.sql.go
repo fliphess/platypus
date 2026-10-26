@@ -15,6 +15,7 @@ LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
 WHERE i.name is null
 `
 
+// Notes whose item no longer exists in AWS (or is hidden).
 func (q *Queries) CountOrphanedNotes(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countOrphanedNotes)
 	var count int64
@@ -64,40 +65,6 @@ SELECT kind, name, body, updated_at, updated_by FROM notes WHERE kind = $1 ORDER
 
 func (q *Queries) ListNotesForKind(ctx context.Context, kind string) ([]Note, error) {
 	rows, err := q.db.Query(ctx, listNotesForKind, kind)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Note{}
-	for rows.Next() {
-		var i Note
-		if err := rows.Scan(
-			&i.Kind,
-			&i.Name,
-			&i.Body,
-			&i.UpdatedAt,
-			&i.UpdatedBy,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listOrphanedNotes = `-- name: ListOrphanedNotes :many
-SELECT n.kind, n.name, n.body, n.updated_at, n.updated_by FROM notes n
-LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
-WHERE i.name is null
-ORDER BY n.kind, n.name
-`
-
-// Notes whose item no longer exists in AWS (or is hidden).
-func (q *Queries) ListOrphanedNotes(ctx context.Context) ([]Note, error) {
-	rows, err := q.db.Query(ctx, listOrphanedNotes)
 	if err != nil {
 		return nil, err
 	}

@@ -38,6 +38,11 @@ func pageNumber(r *http.Request) int {
 	return page
 }
 
+// lastPage is the number of pages for total rows at the given size.
+func lastPage(total int64, size int) int {
+	return int(max((total+int64(size)-1)/int64(size), 1))
+}
+
 // pager is everything a list needs to show where it is and to change the page
 // size. One struct and one template, shared by every list.
 type pager struct {

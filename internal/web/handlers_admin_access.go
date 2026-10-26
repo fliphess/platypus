@@ -2,7 +2,6 @@ package web
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
@@ -29,8 +28,6 @@ type usersData struct {
 	Total          int64
 	Page           int
 	LastPage       int
-	PrevPage       *int
-	NextPage       *int
 	Pager          pager
 	// ReturnTo is the list's own URL, sent by the per-row forms so an admin
 	// stays on the list.
@@ -54,19 +51,13 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	lastPage := lastPage(total, size)
 	data := usersData{Users: users, Search: filter.Search, WithoutAccess: filter.WithoutAccess,
 		Total: total, Page: pageNumber, LastPage: lastPage, ReturnTo: usersReturnTo(filter, pageNumber),
 		CSRFToken: viewerFrom(r.Context()).Session.CSRFToken}
 	data.Pager = newPager("/admin/users", "#user-list",
 		fmt.Sprintf("Page %d of %d · %d users", pageNumber, lastPage, total),
 		r.URL.Query(), pageNumber, lastPage, size, total)
-	if pageNumber > 1 {
-		data.PrevPage = &[]int{pageNumber - 1}[0]
-	}
-	if pageNumber < data.LastPage {
-		data.NextPage = &[]int{pageNumber + 1}[0]
-	}
 	ids := make([]int64, len(users))
 	for i, u := range users {
 		ids[i] = u.ID
@@ -234,7 +225,48 @@ func namesByID(ids []int64, names map[int64]string) []string {
 	return out
 }
 
-func previewUserPolicies(w http.ResponseWriter, r *http.Request, s *Server) error {
+// selectionDiff reports which ids were added and which removed.
+func selectionDiff(current, selected []int64) (added, removed []int64) {
+	inCurrent := make(map[int64]bool, len(current))
+	for _, id := range current {
+		inCurrent[id] = true
+	}
+	inSelected := make(map[int64]bool, len(selected))
+	for _, id := range selected {
+		inSelected[id] = true
+	}
+	for _, id := range selected {
+		if !inCurrent[id] {
+			added = append(added, id)
+		}
+	}
+	for _, id := range current {
+		if !inSelected[id] {
+			removed = append(removed, id)
+		}
+	}
+	return added, removed
+}
+
+// policyNames is the id-to-name map both policy confirmations show.
+func (s *Server) policyNames(r *http.Request) (map[int64]string, error) {
+	all, err := s.services.Access.Policies(r.Context(), "")
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[int64]string, len(all))
+	for _, policy := range all {
+		names[policy.ID] = policy.Name
+	}
+	return names, nil
+}
+
+// confirmPage renders the page that shows what a save will change.
+func (s *Server) confirmPage(w http.ResponseWriter, r *http.Request, data confirmSave) {
+	s.render(w, r, http.StatusOK, "admin_confirm", page{Title: data.Title, Tab: "admin", Data: data})
+}
+
+func (s *Server) previewUserPolicies(w http.ResponseWriter, r *http.Request) error {
 	id, err := pathID(r)
 	if err != nil {
 		return err
@@ -247,33 +279,15 @@ func previewUserPolicies(w http.ResponseWriter, r *http.Request, s *Server) erro
 	if err != nil {
 		return err
 	}
-	all, err := s.services.Access.Policies(r.Context(), "")
+	names, err := s.policyNames(r)
 	if err != nil {
 		return err
 	}
-	names := map[int64]string{}
-	for _, policy := range all {
-		names[policy.ID] = policy.Name
-	}
-	current := map[int64]bool{}
+	current := make([]int64, 0, len(detail.Policies))
 	for _, policy := range detail.Policies {
-		current[policy.ID] = true
+		current = append(current, policy.ID)
 	}
-	selected := map[int64]bool{}
-	for _, policyID := range ids {
-		selected[policyID] = true
-	}
-	var added, removed []int64
-	for policyID := range selected {
-		if !current[policyID] {
-			added = append(added, policyID)
-		}
-	}
-	for policyID := range current {
-		if !selected[policyID] {
-			removed = append(removed, policyID)
-		}
-	}
+	added, removed := selectionDiff(current, ids)
 	s.confirmPage(w, r, confirmSave{
 		Section: "users", Title: "Save these policies?",
 		Message: changeMessage(namesByID(added, names), namesByID(removed, names)),
@@ -283,7 +297,7 @@ func previewUserPolicies(w http.ResponseWriter, r *http.Request, s *Server) erro
 	return nil
 }
 
-func previewTeamPolicies(w http.ResponseWriter, r *http.Request, s *Server) error {
+func (s *Server) previewTeamPolicies(w http.ResponseWriter, r *http.Request) error {
 	id, err := pathID(r)
 	if err != nil {
 		return err
@@ -296,33 +310,15 @@ func previewTeamPolicies(w http.ResponseWriter, r *http.Request, s *Server) erro
 	if err != nil {
 		return err
 	}
-	all, err := s.services.Access.Policies(r.Context(), "")
+	names, err := s.policyNames(r)
 	if err != nil {
 		return err
 	}
-	names := map[int64]string{}
-	for _, policy := range all {
-		names[policy.ID] = policy.Name
-	}
-	current := map[int64]bool{}
+	current := make([]int64, 0, len(detail.Policies))
 	for _, policy := range detail.Policies {
-		current[policy.ID] = true
+		current = append(current, policy.ID)
 	}
-	selected := map[int64]bool{}
-	for _, policyID := range ids {
-		selected[policyID] = true
-	}
-	var added, removed []int64
-	for policyID := range selected {
-		if !current[policyID] {
-			added = append(added, policyID)
-		}
-	}
-	for policyID := range current {
-		if !selected[policyID] {
-			removed = append(removed, policyID)
-		}
-	}
+	added, removed := selectionDiff(current, ids)
 	s.confirmPage(w, r, confirmSave{
 		Section: "teams", Title: "Save these policies?",
 		Message: changeMessage(namesByID(added, names), namesByID(removed, names)),
@@ -332,7 +328,7 @@ func previewTeamPolicies(w http.ResponseWriter, r *http.Request, s *Server) erro
 	return nil
 }
 
-func previewUserTeams(w http.ResponseWriter, r *http.Request, s *Server) error {
+func (s *Server) previewUserTeams(w http.ResponseWriter, r *http.Request) error {
 	id, err := pathID(r)
 	if err != nil {
 		return err
@@ -349,11 +345,11 @@ func previewUserTeams(w http.ResponseWriter, r *http.Request, s *Server) error {
 	if err != nil {
 		return err
 	}
-	names := map[int64]string{}
+	names := make(map[int64]string, len(teams))
 	for _, team := range teams {
 		names[team.ID] = team.Name
 	}
-	current := map[int64]bool{}
+	current := make([]int64, 0, len(detail.Teams))
 	linked := false
 	for _, team := range detail.Teams {
 		if team.IDPGroup != nil {
@@ -361,23 +357,9 @@ func previewUserTeams(w http.ResponseWriter, r *http.Request, s *Server) error {
 			linked = true
 			continue
 		}
-		current[team.ID] = true
+		current = append(current, team.ID)
 	}
-	selected := map[int64]bool{}
-	for _, teamID := range ids {
-		selected[teamID] = true
-	}
-	var added, removed []int64
-	for teamID := range selected {
-		if !current[teamID] {
-			added = append(added, teamID)
-		}
-	}
-	for teamID := range current {
-		if !selected[teamID] {
-			removed = append(removed, teamID)
-		}
-	}
+	added, removed := selectionDiff(current, ids)
 	message := changeMessage(namesByID(added, names), namesByID(removed, names))
 	if linked {
 		message += " Group-linked teams stay as they are."
@@ -388,23 +370,6 @@ func previewUserTeams(w http.ResponseWriter, r *http.Request, s *Server) error {
 		Back: fmt.Sprintf("/admin/users/%d", id), Hidden: hiddenIDs("team_id", ids),
 	})
 	return nil
-}
-
-// confirmPage renders the page that shows what a save will change.
-func (s *Server) confirmPage(w http.ResponseWriter, r *http.Request, data confirmSave) {
-	s.render(w, r, http.StatusOK, "admin_confirm", page{Title: data.Title, Tab: "admin", Data: data})
-}
-
-func (s *Server) previewUserPolicies(w http.ResponseWriter, r *http.Request) error {
-	return previewUserPolicies(w, r, s)
-}
-
-func (s *Server) previewTeamPolicies(w http.ResponseWriter, r *http.Request) error {
-	return previewTeamPolicies(w, r, s)
-}
-
-func (s *Server) previewUserTeams(w http.ResponseWriter, r *http.Request) error {
-	return previewUserTeams(w, r, s)
 }
 
 func (s *Server) setUserPolicies(r *http.Request, id int64) error {
@@ -444,8 +409,6 @@ type teamsData struct {
 	Page     int
 	LastPage int
 	Total    int64
-	PrevLink template.URL
-	NextLink template.URL
 	Pager    pager
 }
 
@@ -457,7 +420,7 @@ func (s *Server) adminTeams(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	lastPage := lastPage(total, size)
 	data := teamsData{Teams: teams, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
 	data.Pager = newPager("/admin/teams", "#team-list",
 		fmt.Sprintf("Page %d of %d · %d teams", pageNumber, lastPage, total),
@@ -677,8 +640,6 @@ type policiesData struct {
 	Page     int
 	LastPage int
 	Total    int64
-	PrevLink template.URL
-	NextLink template.URL
 	Pager    pager
 }
 
@@ -690,7 +651,7 @@ func (s *Server) adminPolicies(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	lastPage := lastPage(total, size)
 	data := policiesData{Policies: policies, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
 	data.Pager = newPager("/admin/policies", "#policy-list",
 		fmt.Sprintf("Page %d of %d · %d policies", pageNumber, lastPage, total),

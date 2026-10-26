@@ -52,11 +52,6 @@ func (c *Catalog) SaveNote(ctx context.Context, kind item.Kind, name, body, upda
 	return c.queries.SaveNote(ctx, db.SaveNoteParams{Kind: string(kind), Name: name, Body: body, UpdatedBy: updatedBy})
 }
 
-// OrphanedNotes returns notes whose item no longer exists or is hidden.
-func (c *Catalog) OrphanedNotes(ctx context.Context) ([]db.Note, error) {
-	return c.queries.ListOrphanedNotes(ctx)
-}
-
 // OrphanedNotesPage returns one page of orphaned notes and the total, so the
 // page uses the same pager as every other list.
 func (c *Catalog) OrphanedNotesPage(ctx context.Context, page, perPage int) ([]db.Note, int64, error) {

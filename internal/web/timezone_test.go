@@ -109,3 +109,22 @@ func TestAuditTimesRenderInTheReportedZone(t *testing.T) {
 		t.Errorf("audit time shows %q, want %q (server-side local)", match[2], want)
 	}
 }
+
+// Audit date controls mean the calendar day the user sees, not a UTC day.
+func TestAuditDayUsesTheDisplayZone(t *testing.T) {
+	amsterdam, err := time.LoadLocation("Europe/Amsterdam")
+	if err != nil {
+		t.Fatal(err)
+	}
+	day, ok := parseAuditDay("2026-10-26", amsterdam)
+	if !ok {
+		t.Fatal("a valid date was rejected")
+	}
+	// 26 October is CET (+1): local midnight is 23:00 UTC the day before.
+	if want := time.Date(2026, 10, 25, 23, 0, 0, 0, time.UTC); !day.Equal(want) {
+		t.Errorf("parsed as %s, want %s", day.UTC(), want)
+	}
+	if _, ok := parseAuditDay("", amsterdam); ok {
+		t.Error("an empty date was accepted")
+	}
+}
