@@ -231,6 +231,8 @@ type layoutData struct {
 	CanLogout bool
 	// AssetVersion breaks browser caches when the static files change.
 	AssetVersion string
+	// BuildID identifies the templates and static files this process serves.
+	BuildID string
 	// Zone is the zone times were rendered in ("utc" when none was known).
 	// Exposed in the page so a wrong time explains itself.
 	Zone string
@@ -246,7 +248,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 		zone = "utc"
 	}
 	data := layoutData{page: p, Viewer: viewerFrom(r.Context()), TestMode: s.settings.TestMode,
-		CanLogout: s.services.Login != nil, AssetVersion: s.assetVersion, Zone: zone}
+		CanLogout: s.services.Login != nil, AssetVersion: s.assetVersion, Zone: zone,
+		BuildID: s.buildID}
 	s.execute(w, r, status, name, "layout", data)
 }
 

@@ -10,6 +10,7 @@
   <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true,"selfRequestsOnly":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
   {{- with .Viewer}}
   <meta name="csrf-token" content="{{.Session.CSRFToken}}">
+  <meta name="build" content="{{$.BuildID}}">
   {{- end}}
   <script src="/static/htmx-2.0.11.min.js?v={{.AssetVersion}}" defer></script>
   <script src="/static/app.js?v={{.AssetVersion}}" defer></script>

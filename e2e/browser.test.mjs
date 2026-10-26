@@ -38,6 +38,32 @@ page.on("response", (r) => { if (r.request().method() === "POST") console.log("P
 page.on("dialog", (d) => { console.log("DIALOG", d.type(), d.message()); d.dismiss().catch(() => {}); });
 
 
+const checkoutBuild = async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const crypto = await import("node:crypto");
+  const hash = crypto.createHash("sha256");
+  for (const [dir, prefix] of [["templates", "templates"], ["static", "static"]]) {
+    const files = [];
+    const walk = (current, rel) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        const child = `${rel}/${entry.name}`;
+        if (entry.isDirectory()) walk(full, child);
+        else files.push([child, full]);
+      }
+    };
+    walk(`/checkout/${dir}`, prefix);
+    files.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    for (const [rel, full] of files) {
+      hash.update(rel + "\0");
+      hash.update(fs.readFileSync(full));
+      hash.update("\0");
+    }
+  }
+  return hash.digest("hex").slice(0, 16);
+};
+
 const base = "http://admin.localhost:8090";
 const assertLocalTimes = async (selector, where) => {
   const got = await page.evaluate((sel) => {
@@ -70,6 +96,15 @@ const step = async (name, fn, onPage = page) => {
   }
 };
 
+await step("the running build matches the checkout", async () => {
+  await page.goto(base + "/");
+  const served = await page.evaluate(() => document.querySelector('meta[name="build"]')?.content ?? "");
+  const expected = await checkoutBuild();
+  if (!served) throw new Error("the page carries no build id, so staleness cannot be detected");
+  if (served !== expected) {
+    throw new Error(`stale build: serving ${served}, checkout is ${expected} — restart the stack (make dev-reload)`);
+  }
+});
 await step("bootstrap page", async () => {
   await page.goto(base + "/");
   await page.waitForSelector("text=Bootstrap token");

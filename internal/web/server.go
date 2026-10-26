@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"go.uber.org/zap"
@@ -76,6 +77,10 @@ type Server struct {
 	// assetVersion changes whenever the static files do, so a browser can
 	// never run a stale stylesheet or script after an update.
 	assetVersion string
+	// buildID hashes the templates and static files this process actually
+	// loaded. The browser suite recomputes it from the checkout, so a process
+	// serving stale files cannot pass unnoticed.
+	buildID string
 }
 
 // assetVersion hashes the static files' names and modification times.
@@ -98,6 +103,46 @@ func assetVersion(dir string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil))[:12], nil
 }
 
+// buildID hashes the served files by relative path and content. The browser
+// suite implements the same walk, so both sides agree without sharing code.
+func buildID(templatesDir, staticDir string) (string, error) {
+	h := sha256.New()
+	hashDir := func(root, prefix string) error {
+		var files []string
+		if err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil || entry.IsDir() {
+				return err
+			}
+			files = append(files, path)
+			return nil
+		}); err != nil {
+			return err
+		}
+		sort.Strings(files)
+		for _, path := range files {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			content, err := os.ReadFile(path) //nolint:gosec // path comes from walking the configured directory
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintf(h, "%s/%s\x00", prefix, filepath.ToSlash(rel))
+			h.Write(content)
+			h.Write([]byte{0})
+		}
+		return nil
+	}
+	if err := hashDir(templatesDir, "templates"); err != nil {
+		return "", fmt.Errorf("hash templates: %w", err)
+	}
+	if err := hashDir(staticDir, "static"); err != nil {
+		return "", fmt.Errorf("hash static files: %w", err)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16], nil
+}
+
 // NewServer returns a Server.
 func NewServer(services Services, settings Settings, log *zap.Logger) (*Server, error) {
 	tmpl, err := loadTemplates(os.DirFS(settings.TemplatesDir))
@@ -115,8 +160,12 @@ func NewServer(services Services, settings Settings, log *zap.Logger) (*Server, 
 	if err != nil {
 		return nil, err
 	}
+	build, err := buildID(settings.TemplatesDir, settings.StaticDir)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{services: services, settings: settings, templates: tmpl, log: log, now: time.Now,
-		assetVersion: version}, nil
+		assetVersion: version, buildID: build}, nil
 }
 
 // Handler returns the complete HTTP handler.
