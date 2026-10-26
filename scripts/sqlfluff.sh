@@ -13,6 +13,9 @@ cd "$(dirname "$0")/.."
 sqlfluff_image="${SQLFLUFF_IMAGE:-sqlfluff/sqlfluff:3.4.0}"
 
 tmp="$(mktemp -d)"
+# The sqlfluff image runs as a non-root user, while mktemp creates a 0700
+# directory: without this it cannot read the mounted queries on Linux CI.
+chmod 755 "$tmp"
 trap 'rm -rf "$tmp"' EXIT
 
 python3 - "$tmp" <<'PY'
