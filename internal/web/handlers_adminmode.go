@@ -125,7 +125,9 @@ func (s *Server) leaveAdminMode(w http.ResponseWriter, r *http.Request) error {
 	if err := s.services.Sessions.SetAdminMode(r.Context(), viewer.Session, nil); err != nil {
 		return err
 	}
-	s.services.Audit.RecordBestEffort(r.Context(), audit.Event{Action: audit.ActionAdminModeLeave, Outcome: audit.Allowed})
+	if err := s.services.Audit.Record(r.Context(), audit.Event{Action: audit.ActionAdminModeLeave, Outcome: audit.Allowed}); err != nil {
+		return err
+	}
 	s.redirect(w, r, "/?notice=admin-off")
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"platypus/internal/audit"
 	"platypus/internal/database"
 	"platypus/internal/db"
@@ -22,13 +24,14 @@ type State struct {
 
 // Service reads and changes the state.
 type Service struct {
+	pool    *pgxpool.Pool
 	queries *db.Queries
 	audit   *audit.Recorder
 }
 
 // NewService returns a Service.
-func NewService(queries *db.Queries, recorder *audit.Recorder) *Service {
-	return &Service{queries: queries, audit: recorder}
+func NewService(pool *pgxpool.Pool, recorder *audit.Recorder) *Service {
+	return &Service{pool: pool, queries: db.New(pool), audit: recorder}
 }
 
 // Get returns the current state.
@@ -50,34 +53,44 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 // SetBlocked turns the block switch on or off. While on, only admins can use
 // platypus, and nobody can reveal or change values.
 func (s *Service) SetBlocked(ctx context.Context, blocked bool) error {
-	var err error
 	action := audit.ActionBlockOff
 	if blocked {
 		action = audit.ActionBlockOn
-		blockedBy := audit.ActorFrom(ctx).Email
-		err = s.queries.SetBlocked(ctx, &blockedBy)
-	} else {
-		err = s.queries.ClearBlocked(ctx)
 	}
+	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		if blocked {
+			blockedBy := audit.ActorFrom(ctx).Email
+			if err := q.SetBlocked(ctx, &blockedBy); err != nil {
+				return err
+			}
+		} else if err := q.ClearBlocked(ctx); err != nil {
+			return err
+		}
+		return s.audit.RecordTx(ctx, q, audit.Event{Action: action, Outcome: audit.Allowed})
+	})
 	if err != nil {
 		return fmt.Errorf("set block switch: %w", err)
 	}
-	return s.audit.Record(ctx, audit.Event{Action: action, Outcome: audit.Allowed})
+	return nil
 }
 
 // RequestSync asks the worker to sync now. With recheckAccess it also
 // re-checks platypus's own access to every item.
 func (s *Service) RequestSync(ctx context.Context, recheckAccess bool) error {
 	requestedBy := audit.ActorFrom(ctx).Email
-	err := s.queries.RequestSync(ctx, db.RequestSyncParams{
-		RequestedBy:   &requestedBy,
-		RecheckAccess: recheckAccess,
+	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		if err := q.RequestSync(ctx, db.RequestSyncParams{
+			RequestedBy:   &requestedBy,
+			RecheckAccess: recheckAccess,
+		}); err != nil {
+			return err
+		}
+		return s.audit.RecordTx(ctx, q, audit.Event{Action: audit.ActionSyncRequested, Outcome: audit.Allowed,
+			Details: map[string]any{"recheck_access": recheckAccess}})
 	})
 	if err != nil {
 		return fmt.Errorf("request sync: %w", err)
 	}
-	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionSyncRequested, Outcome: audit.Allowed,
-		Details: map[string]any{"recheck_access": recheckAccess}})
 	return nil
 }
 

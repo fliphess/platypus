@@ -183,7 +183,7 @@ func newHarness(t *testing.T, options ...harnessOption) *harness {
 		Auth:      verifier,
 		Login:     login,
 		Access:    accessService,
-		AppState:  appstate.NewService(q, recorder),
+		AppState:  appstate.NewService(pool, recorder),
 		Audit:     recorder,
 		Trail:     audit.NewTrail(q, recorder),
 		Bootstrap: bootstrap.NewService(pool, params, mfaService, guard, recorder, bootstrap.Config{TokenParam: tokenParam, TokenTTL: time.Hour}),

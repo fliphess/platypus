@@ -192,15 +192,16 @@ func (s *Service) Complete(ctx context.Context, user db.User, tokenID int64) err
 		if seeded, err = access.SeedDefaultPolicies(ctx, q); err != nil {
 			return err
 		}
-		return q.SetBootstrapped(ctx, true)
+		if err := q.SetBootstrapped(ctx, true); err != nil {
+			return err
+		}
+		if seeded {
+			if err := s.audit.RecordTx(ctx, q, audit.Event{Action: audit.ActionPoliciesSeed, Outcome: audit.Allowed}); err != nil {
+				return err
+			}
+		}
+		return s.audit.RecordTx(ctx, q, audit.Event{Action: audit.ActionBootstrapCompleted, Outcome: audit.Allowed,
+			Details: map[string]any{"admin": user.Email}})
 	})
-	if err != nil {
-		return err
-	}
-
-	if seeded {
-		s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionPoliciesSeed, Outcome: audit.Allowed})
-	}
-	return s.audit.Record(ctx, audit.Event{Action: audit.ActionBootstrapCompleted, Outcome: audit.Allowed,
-		Details: map[string]any{"admin": user.Email}})
+	return err
 }

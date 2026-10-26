@@ -107,7 +107,7 @@ func New(ctx context.Context, cfg config.Config, log *zap.Logger) (*App, error) 
 		sealer:   sealer,
 		recorder: recorder,
 		access:   access.NewService(pool, recorder, cfg.AllowedEmailDomains),
-		appState: appstate.NewService(queries, recorder),
+		appState: appstate.NewService(pool, recorder),
 		catalog:  cat,
 		items: items.NewService(cat, parameters, secrets, recorder, limiter, items.Config{
 			RevealsPerMinute: cfg.RevealsPerMinute,
@@ -254,11 +254,20 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 func serve(ctx context.Context, shutdownTimeout time.Duration, servers ...*http.Server) error {
 	errs := make(chan error, len(servers))
 	var listenConfig net.ListenConfig
+	started := make([]*http.Server, 0, len(servers))
 	for _, server := range servers {
 		listener, err := listenConfig.Listen(ctx, "tcp", server.Addr)
 		if err != nil {
+			// Close what already listens: returning here would leave the
+			// first listener running behind a dead process.
+			shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
+			for _, open := range started {
+				_ = open.Shutdown(shutdownCtx)
+			}
+			cancel()
 			return fmt.Errorf("listen on %s: %w", server.Addr, err)
 		}
+		started = append(started, server)
 		go func() {
 			if err := server.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
 				errs <- fmt.Errorf("serve %s: %w", server.Addr, err)
