@@ -183,6 +183,9 @@ func (s *Server) newItemForm(kind item.Kind) handlerFunc {
 
 func (s *Server) previewCreate(kind item.Kind) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		if err := requireDescription(r); err != nil {
+			return err
+		}
 		viewer := viewerFrom(r.Context())
 		teams, err := s.teamNames(r, viewer)
 		if err != nil {
@@ -202,6 +205,9 @@ func (s *Server) previewCreate(kind item.Kind) handlerFunc {
 
 func (s *Server) createItem(kind item.Kind) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		if err := requireDescription(r); err != nil {
+			return err
+		}
 		viewer := viewerFrom(r.Context())
 		teams, err := s.teamNames(r, viewer)
 		if err != nil {
@@ -275,6 +281,9 @@ func (s *Server) loadValue(kind item.Kind) handlerFunc {
 
 func (s *Server) previewUpdate(kind item.Kind) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		if err := requireDescription(r); err != nil {
+			return err
+		}
 		viewer := viewerFrom(r.Context())
 		summary, err := s.services.Items.PreviewUpdate(r.Context(), viewer.Subject, changeFromForm(r, kind))
 		if err != nil {
@@ -289,6 +298,9 @@ func (s *Server) previewUpdate(kind item.Kind) handlerFunc {
 
 func (s *Server) updateItem(kind item.Kind) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		if err := requireDescription(r); err != nil {
+			return err
+		}
 		viewer := viewerFrom(r.Context())
 		change := changeFromForm(r, kind)
 		if err := s.services.Items.Update(r.Context(), viewer.Subject, change); err != nil {
@@ -379,6 +391,15 @@ func (s *Server) teamNames(r *http.Request, viewer *Viewer) ([]string, error) {
 		names[i] = team.Name
 	}
 	return names, nil
+}
+
+// requireDescription enforces the product rule that every item explains
+// itself to colleagues. It applies to create and update, including previews.
+func requireDescription(r *http.Request) error {
+	if strings.TrimSpace(r.PostFormValue("description")) == "" {
+		return problem.Invalid("A description is required: it is what colleagues see in the list.")
+	}
+	return nil
 }
 
 func newItemFromForm(r *http.Request, kind item.Kind) items.NewItem {

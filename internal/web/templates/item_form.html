@@ -27,8 +27,8 @@
   {{- end}}
 
   <label for="description">Description</label>
-  <input id="description" type="text" name="description" maxlength="1024" value="{{.Description}}">
-  <p class="field-hint">Optional.</p>
+  <input id="description" type="text" name="description" maxlength="1024" value="{{.Description}}" required>
+  <p class="field-hint">Required. It is what colleagues see in the list, so write what this value is for.</p>
 
   {{- if eq .Kind "ssm"}}
   <label for="ssm_type">Type</label>

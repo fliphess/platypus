@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,7 +24,8 @@ func TestSaveAndAddAnother(t *testing.T) {
 	form := func(name, after string) url.Values {
 		return url.Values{
 			"name": {name}, "value": {"another-value"}, "format": {"text"},
-			"ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}, "after": {after},
+			"description": {"Created by the save-and-add-another test"},
+			"ssm_type":    {"SecureString"}, "ssm_tier": {"Standard"}, "after": {after},
 		}
 	}
 
@@ -35,5 +37,44 @@ func TestSaveAndAddAnother(t *testing.T) {
 	view := h.post("/ssm/new", admin, form("/apps/kept", "view"))
 	if view.status != http.StatusOK || !strings.Contains(view.header.Get("HX-Redirect"), "/ssm/item?name=") {
 		t.Errorf("save went to %d %q", view.status, view.header.Get("HX-Redirect"))
+	}
+}
+
+// Every item explains itself: create and update refuse a form without a
+// description, before anything is written.
+func TestDescriptionRequired(t *testing.T) {
+	h := newHarness(t)
+	secret := h.bootstrap()
+	h.addParameter("/apps/existing", "value")
+	h.elevate(secret)
+	h.grant(admin, access.RuleInput{Kind: item.KindSSM, Pattern: "/*",
+		Permissions: authz.Permissions{Create: true, List: true, Edit: true}})
+
+	create := url.Values{"name": {"/apps/new"}, "value": {"v"}, "format": {"text"},
+		"ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}}
+	for _, path := range []string{"/ssm/new/preview", "/ssm/new"} {
+		r := h.post(path, admin, create)
+		if r.status != http.StatusUnprocessableEntity || !strings.Contains(r.body, "A description is required") {
+			t.Errorf("%s without a description = %d %q", path, r.status, r.body)
+		}
+	}
+	if _, err := h.params.Value(context.Background(), "/apps/new", 0); err == nil {
+		t.Error("a parameter was created without a description")
+	}
+
+	edit := url.Values{"name": {"/apps/existing"}, "value": {"changed"}, "format": {"text"},
+		"ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}, "expect_version": {"1"}}
+	for _, path := range []string{"/ssm/edit/preview", "/ssm/edit"} {
+		r := h.post(path, admin, edit)
+		if r.status != http.StatusUnprocessableEntity || !strings.Contains(r.body, "A description is required") {
+			t.Errorf("%s without a description = %d %q", path, r.status, r.body)
+		}
+	}
+	value, err := h.params.Value(context.Background(), "/apps/existing", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Reveal() != "value" {
+		t.Errorf("the value changed without a description: %q", value.Reveal())
 	}
 }

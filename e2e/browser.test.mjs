@@ -211,6 +211,7 @@ await step("save and add another", async () => {
   const label = (await page.locator("button[name=after][value=view]").innerText()).trim();
   if (label !== "Save") throw new Error(`the first create button says ${JSON.stringify(label)}, want Save`);
   await page.fill("#name", "/apps/another-one");
+  await page.fill("#description", "Another parameter");
   await page.fill("textarea[name=value]", "another-value");
   await page.click("button[name=after][value=another]");
   await page.waitForSelector("dialog[open]");

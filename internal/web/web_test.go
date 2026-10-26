@@ -311,15 +311,16 @@ func TestValuesNeverLeak(t *testing.T) {
 	h.post("/ssm/reveal", editor, url.Values{"name": {"/apps/payments/db-url"}})
 	h.post("/secrets/reveal", editor, url.Values{"name": {"prod/payments/db"}})
 	h.get("/secrets/edit?name=prod/payments/db", editor)
-	edit := url.Values{"name": {"prod/payments/db"}, "value": {`{"password":"` + secretCanary + `-2"}`}, "format": {"json"}}
+	edit := url.Values{"name": {"prod/payments/db"}, "value": {`{"password":"` + secretCanary + `-2"}`}, "format": {"json"},
+		"description": {"Payments database"}}
 	edit.Set("expect_version", h.secretVersion("prod/payments/db"))
 	h.post("/secrets/edit/preview", editor, edit)
 	h.post("/secrets/edit", editor, edit)
 	h.post("/ssm/new", editor, url.Values{"name": {"/apps/new"}, "value": {paramCanary + "-new"}, "format": {"text"},
-		"ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}})
+		"description": {"A new parameter"}, "ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}})
 	// Too large for SSM: the error must not echo the value.
 	tooLarge := h.post("/ssm/new", editor, url.Values{"name": {"/apps/huge"}, "value": {paramCanary + strings.Repeat("x", 5000)},
-		"format": {"text"}, "ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}})
+		"format": {"text"}, "description": {"Too large"}, "ssm_type": {"SecureString"}, "ssm_tier": {"Standard"}})
 	if strings.Contains(tooLarge.body, paramCanary) {
 		t.Error("an error message echoes the value")
 	}
