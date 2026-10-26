@@ -1,5 +1,5 @@
 # Stage 1: build a static binary.
-FROM golang:1.26.10-trixie AS builder
+FROM golang:1.27.3-trixie AS builder
 
 WORKDIR /src
 
