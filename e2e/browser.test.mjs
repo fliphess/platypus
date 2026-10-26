@@ -257,10 +257,31 @@ await step("profile and local times", async () => {
   await page.waitForSelector("#audit-results .event-time");
   await assertLocalTimes("#audit-results time[datetime]", "the audit trail");
   // Searching re-renders the fragment server-side: it must come back local.
-  await page.fill(".search-bar input[type=search][name=q]", "item");
+  await page.fill(".search-bar input[type=search][name=q]", "admin");
   await page.waitForTimeout(1200);
   await assertLocalTimes("#audit-results time[datetime]", "the audit trail after a search");
   await page.fill(".search-bar input[type=search][name=q]", "");
+  await page.waitForTimeout(1200);
+  // The server itself must render local time: read the HTML it sends and
+  // check the <time> text against the instant. No page script is involved, so
+  // a failure here means the flash is real, not that JS was slow.
+  const served = await page.evaluate(async () => {
+    const response = await fetch("/admin/audit");
+    return { status: response.status, html: await response.text() };
+  });
+  const shown = served.html.match(/<time datetime="([^"]+)" data-utc="[^"]*">([^<]+)<\/time>/);
+  if (!shown) throw new Error(`the server sent no time element: ${served.status}`);
+  const expected = await page.evaluate((iso) => {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }, shown[1]);
+  if (shown[2] !== expected) {
+    throw new Error(`the server rendered UTC: sent "${shown[2]}", browser zone says "${expected}"`);
+  }
+  if (!served.html.includes('data-zone="Europe/Amsterdam"')) {
+    throw new Error("the server did not use the reported zone (tzdata missing in the image?)");
+  }
   await page.waitForTimeout(1200);
 });
 await step("list and search", async () => {
@@ -458,13 +479,14 @@ await step("layout invariants hold", async () => {
   const items = await page.evaluate(() => {
     const list = document.querySelector("#results");
     const header = Array.from(document.querySelectorAll("#results .item-columns span"));
-    const row = document.querySelector("#results .item-grid");
-    const cells = Array.from(row.children);
-    const offsets = header.map((h, i) => [Math.round(h.getBoundingClientRect().x), cells[i] ? Math.round(cells[i].getBoundingClientRect().x) : null]);
+    const cells = Array.from(document.querySelector("#results .item-grid").children);
+    const edit = document.querySelector("#results .item-row > .row-edit");
+    const offsets = cells.map((cell, i) => [Math.round(header[i].getBoundingClientRect().x), Math.round(cell.getBoundingClientRect().x)]);
+    const editOffset = [Math.round(header.at(-1).getBoundingClientRect().x), Math.round(edit.getBoundingClientRect().x)];
     return {
       overflow: list.scrollWidth - list.clientWidth,
-      aligned: offsets.every(([h, c]) => c !== null && Math.abs(h - c) < 2),
-      offsets,
+      aligned: offsets.every(([h, c]) => Math.abs(h - c) < 2) && Math.abs(editOffset[0] - editOffset[1]) < 2,
+      offsets: [...offsets, editOffset],
     };
   });
   if (items.overflow > 0) throw new Error(`the item list overflows by ${items.overflow}px`);
@@ -481,10 +503,21 @@ await step("layout invariants hold", async () => {
       return range.getBoundingClientRect().right;
     };
     const header = document.querySelector("#results .item-columns .head-edit");
-    const button = document.querySelector("#results .item-grid .row-edit .button");
+    const button = document.querySelector("#results .item-row .row-edit .button");
     return { drift: Math.abs(textRight(header) - textRight(button)) };
   });
   if (editAligned.drift >= 2) throw new Error(`the Edit label sits ${editAligned.drift}px off the Edit button`);
+  const sameLine = await page.evaluate(() => {
+    const name = document.querySelector("#results .item-name").getBoundingClientRect();
+    const button = document.querySelector("#results .item-row .row-edit .button").getBoundingClientRect();
+    return { nameTop: name.top, nameBottom: name.bottom, buttonTop: button.top, buttonBottom: button.bottom };
+  });
+  if (sameLine.buttonTop > sameLine.nameBottom || sameLine.buttonBottom < sameLine.nameTop) {
+    throw new Error(`the Edit action is on another line: ${JSON.stringify(sameLine)}`);
+  }
+  const nested = await page.evaluate(() =>
+    document.querySelectorAll("summary a, summary button, summary input, summary select, summary textarea").length);
+  if (nested > 0) throw new Error(`${nested} interactive elements are inside a <summary>`);
   // Rows fit their card at every width: nothing paints past its edge.
   for (const width of [1280, 1216, 1152, 1088, 1024, 960, 900]) {
     await page.setViewportSize({ width, height: 900 });
@@ -511,7 +544,7 @@ await step("layout invariants hold", async () => {
   // The Edit action and the moment must never overlap, whatever the locale.
   const noOverlap = await page.evaluate(() => {
     const row = document.querySelector("#results .item-grid");
-    const edit = row.querySelector(".row-edit").getBoundingClientRect();
+    const edit = document.querySelector("#results .item-row > .row-edit").getBoundingClientRect();
     const when = row.querySelector(".event-time").getBoundingClientRect();
     return when.right <= edit.left + 1;
   });

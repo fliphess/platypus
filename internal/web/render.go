@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -199,7 +200,13 @@ func timeZoneFor(r *http.Request) (*time.Location, string) {
 	if err != nil {
 		return time.UTC, ""
 	}
-	loc, zone, ok := parseZone(cookie.Value)
+	// Browsers percent-encode the value ("Europe%2FAmsterdam"); accept both
+	// forms so a plain zone name and an encoded one behave the same.
+	name := cookie.Value
+	if decoded, err := url.QueryUnescape(name); err == nil {
+		name = decoded
+	}
+	loc, zone, ok := parseZone(name)
 	if !ok {
 		return time.UTC, ""
 	}
@@ -224,6 +231,9 @@ type layoutData struct {
 	CanLogout bool
 	// AssetVersion breaks browser caches when the static files change.
 	AssetVersion string
+	// Zone is the zone times were rendered in ("utc" when none was known).
+	// Exposed in the page so a wrong time explains itself.
+	Zone string
 }
 
 // render writes a full page.
@@ -231,8 +241,12 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 	if p.Notice == "" {
 		p.Notice = notices[r.URL.Query().Get("notice")]
 	}
+	_, zone := timeZoneFor(r)
+	if zone == "" {
+		zone = "utc"
+	}
 	data := layoutData{page: p, Viewer: viewerFrom(r.Context()), TestMode: s.settings.TestMode,
-		CanLogout: s.services.Login != nil, AssetVersion: s.assetVersion}
+		CanLogout: s.services.Login != nil, AssetVersion: s.assetVersion, Zone: zone}
 	s.execute(w, r, status, name, "layout", data)
 }
 

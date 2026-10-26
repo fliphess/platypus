@@ -52,6 +52,10 @@ func TestParseZoneRejectsJunk(t *testing.T) {
 	if _, _, ok := parseZone("+01:00"); !ok {
 		t.Error("a numeric offset should be accepted")
 	}
+	// Browsers percent-encode: the decoded name must be what is validated.
+	if loc, _, ok := parseZone("Europe/Amsterdam"); !ok || loc.String() != "Europe/Amsterdam" {
+		t.Error("a plain zone name should be accepted")
+	}
 }
 
 // A browser that reports its zone gets server-rendered local times, so no
@@ -74,7 +78,8 @@ func TestAuditTimesRenderInTheReportedZone(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("X-Auth-Request-Email", admin)
-	req.AddCookie(&http.Cookie{Name: zoneCookie, Value: "Europe/Amsterdam"})
+	// The browser sends this percent-encoded; the server must decode it.
+	req.AddCookie(&http.Cookie{Name: zoneCookie, Value: "Europe%2FAmsterdam"})
 	resp, err := h.client(admin).Do(req)
 	if err != nil {
 		t.Fatal(err)

@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata" // the zone database travels with the binary
 
 	"go.uber.org/zap"
 

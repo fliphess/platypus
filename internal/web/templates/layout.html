@@ -14,7 +14,7 @@
   <script src="/static/htmx-2.0.11.min.js?v={{.AssetVersion}}" defer></script>
   <script src="/static/app.js?v={{.AssetVersion}}" defer></script>
 </head>
-<body data-timezone="{{with .Viewer}}{{.User.Timezone}}{{else}}utc{{end}}"{{with .Viewer}} hx-headers='{"X-CSRF-Token": "{{.Session.CSRFToken}}"}'{{end}}>
+<body data-timezone="{{with .Viewer}}{{.User.Timezone}}{{else}}utc{{end}}" data-zone="{{.Zone}}"{{with .Viewer}} hx-headers='{"X-CSRF-Token": "{{.Session.CSRFToken}}"}'{{end}}>
   <header class="site-header">
     <div class="inner">
       <a class="brand" href="/"><img src="/static/logo.svg" alt="">Platypus</a>
