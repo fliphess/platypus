@@ -8,6 +8,10 @@ image:
   repository: ghcr.io/fliphess/platypus
   # Defaults to the chart's appVersion.
   tag: ""
+  # Pin the image by digest instead of tag (recommended for production):
+  # digest: sha256:...
+  # A digest wins over tag/appVersion.
+  digest: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -161,6 +165,9 @@ networkPolicy:
   # example postgresTo: [{ipBlock: {cidr: 10.0.0.0/16}}].
   postgresTo: []
   httpsTo: []
+  # EKS Pod Identity hands out credentials on the link-local address
+  # 169.254.170.23:80. Keep this allowed even when httpsTo is narrowed.
+  podIdentity: true
 
 podDisruptionBudget:
   enabled: true

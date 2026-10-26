@@ -1,6 +1,8 @@
 #!/bin/sh
 # Fills the local AWS emulator with fake parameters and secrets for
 # docker-compose. Safe to run again: existing items are left alone.
+# PLATYPUS_SEED_BULK=500 also adds that many parameters, for trying the list
+# pages and search with realistic volumes.
 set -u
 
 parameter() {
@@ -25,6 +27,14 @@ aws secretsmanager create-secret --name prod/platform/rds --secret-string '{"use
   --description "Managed by Terraform" --tags Key=Terraform,Value=true >/dev/null 2>&1 || true
 aws secretsmanager create-secret --name prod/legacy/certificate --secret-binary fileb:///etc/hostname \
   --description "A binary secret, which platypus doesn't support" >/dev/null 2>&1 || true
+
+bulk="${PLATYPUS_SEED_BULK:-0}"
+i=1
+while [ "$i" -le "$bulk" ]; do
+  n=$(printf '%04d' "$i")
+  parameter "/bulk/service-$n/config" String "value-$i" "Bulk parameter $n for list and search testing"
+  i=$((i + 1))
+done
 
 echo "seeded fake parameters and secrets"
 # Deliberately long names: real deployments have them, so the lists should be

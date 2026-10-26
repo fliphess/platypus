@@ -138,7 +138,7 @@ func (w *Worker) runOnce(ctx context.Context) {
 func (w *Worker) runJob(ctx context.Context, name string, lock int64, timeout time.Duration, job func(context.Context) error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	ran, err := database.WithTryLock(ctx, w.pool, lock, job)
+	ran, err := w.runSafely(ctx, name, lock, job)
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		w.log.Error("job took too long and was stopped", zap.String("job", name), zap.Duration("timeout", timeout), zap.Error(err))
@@ -154,6 +154,19 @@ func (w *Worker) runJob(ctx context.Context, name string, lock int64, timeout ti
 	if w.skipped[name]%skipsBeforeWarning == 0 {
 		w.log.Warn("job skipped: another worker holds its lock", zap.String("job", name), zap.Int("ticks_in_a_row", w.skipped[name]))
 	}
+}
+
+// runSafely runs one job and turns a panic into a failed round. Without
+// this, one bad item would take the worker down and nothing would sync again
+// until Kubernetes restarted it.
+func (w *Worker) runSafely(ctx context.Context, name string, lock int64, job func(context.Context) error) (ran bool, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			w.log.Error("job panicked", zap.String("job", name), zap.Any("panic", recovered), zap.Stack("stack"))
+			err = fmt.Errorf("job panicked: %v", recovered)
+		}
+	}()
+	return database.WithTryLock(ctx, w.pool, lock, job)
 }
 
 func (w *Worker) ensureBootstrapToken(ctx context.Context) error {

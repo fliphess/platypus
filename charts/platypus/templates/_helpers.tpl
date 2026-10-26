@@ -42,7 +42,11 @@ app.kubernetes.io/component: {{ .component }}
 {{- end }}
 
 {{- define "platypus.image" -}}
+{{- if .Values.image.digest -}}
+{{ .Values.image.repository }}@{{ .Values.image.digest }}
+{{- else -}}
 {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
+{{- end -}}
 {{- end }}
 
 {{/* Name of the Secret holding the secret settings. */}}
@@ -94,18 +98,29 @@ containers:
       - name: PLATYPUS_DB_SSLROOTCERT
         value: /etc/platypus/database-ca/{{ $root.Values.databaseCA.key }}
     {{- end }}
+    # A slow first start (database not reachable yet) must not be restarted:
+    # the startup probe gives it up to five minutes, then liveness takes over.
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: health
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 60
     livenessProbe:
       httpGet:
         path: /healthz
         port: health
       periodSeconds: 10
       timeoutSeconds: 2
+      failureThreshold: 3
     readinessProbe:
       httpGet:
         path: /readyz
         port: health
       periodSeconds: 10
       timeoutSeconds: 3
+      failureThreshold: 2
     resources:
       {{- toYaml .values.resources | nindent 6 }}
     volumeMounts:
