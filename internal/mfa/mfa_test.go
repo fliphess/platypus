@@ -2,6 +2,7 @@ package mfa
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -76,7 +77,7 @@ func TestTOTPEnrollAndVerify(t *testing.T) {
 		t.Error("unconfirmed TOTP opened admin mode")
 	}
 
-	if err := f.svc.ConfirmTOTPEnrollment(ctx, f.user, "000000"); err == nil {
+	if err := f.svc.ConfirmTOTPEnrollment(ctx, f.user, wrongCode(t, enrollment.Secret, *f.clock)); err == nil {
 		t.Error("a wrong code confirmed the enrollment")
 	}
 	if err := f.svc.ConfirmTOTPEnrollment(ctx, f.user, code()); err != nil {
@@ -111,8 +112,9 @@ func TestFailedAttemptsLockTheUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	wrong := wrongCode(t, enrollment.Secret, *f.clock)
 	for attempt := 1; attempt <= lockout.MaxAttempts; attempt++ {
-		err := f.svc.VerifyTOTP(ctx, f.user.ID, "123456")
+		err := f.svc.VerifyTOTP(ctx, f.user.ID, wrong)
 		p, ok := problem.As(err)
 		if !ok {
 			t.Fatalf("attempt %d: err = %v, want a problem", attempt, err)
@@ -211,4 +213,27 @@ func TestPasskeysOff(t *testing.T) {
 	if _, err := NewService(nil, nil, nil, nil, nil); err != nil {
 		t.Errorf("NewService without passkeys: %v", err)
 	}
+}
+
+// wrongCode returns a six-digit code that matches no accepted TOTP window for
+// the given secret and instant, so a test can never accidentally prove a real
+// code wrong.
+func wrongCode(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	for n := 0; n < 1000000; n++ {
+		candidate := fmt.Sprintf("%06d", n)
+		valid := false
+		for drift := -1; drift <= 1; drift++ {
+			code, err := totp.GenerateCode(secret, at.Add(time.Duration(drift)*totpPeriod))
+			if err == nil && code == candidate {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return candidate
+		}
+	}
+	t.Fatal("no six-digit value differs from the valid windows")
+	return ""
 }

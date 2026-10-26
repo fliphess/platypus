@@ -187,3 +187,17 @@ func TestLinkedTeamsAreReadOnly(t *testing.T) {
 		t.Errorf("after unlinking: %+v, %v", team.IDPGroup, err)
 	}
 }
+
+// A group name is an authorization key: it is stored exactly as given, so a
+// name that merely looks like another after cleaning cannot inherit its team.
+func TestGroupNamesAreNotRewritten(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := asAdmin(context.Background())
+	team, err := svc.CreateTeam(ctx, access.TeamInput{Name: "Payments", IDPGroup: "<b>payments</b>"})
+	if err != nil {
+		t.Fatalf("CreateTeam: %v", err)
+	}
+	if team.IDPGroup == nil || *team.IDPGroup != "<b>payments</b>" {
+		t.Errorf("group stored as %v, want the exact name", team.IDPGroup)
+	}
+}

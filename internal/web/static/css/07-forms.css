@@ -229,6 +229,7 @@ code {
 .segmented label { margin: 0; padding: 0.3rem 0.8rem; font-weight: 500; cursor: pointer; }
 .segmented input { position: absolute; opacity: 0; pointer-events: none; }
 .segmented input:checked + span { color: var(--accent); }
+.segmented input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 .segmented label:has(input:checked) { background: var(--accent-soft); }
 
 /* The JSON fields editor: one line per entry, with a real key column and a
@@ -241,6 +242,11 @@ code {
   align-items: center;
 }
 .field-row button { padding: 0.1rem 0.55rem; font-size: 0.82rem; white-space: nowrap; }
+@media (max-width: 40rem) {
+  /* Key, value and Remove stack; the tracks' minima cannot fit a phone. */
+  .field-rows .field-row { grid-template-columns: minmax(0, 1fr); }
+  .field-row button { justify-self: start; }
+}
 /* A row's remove action: a quiet × that needs no column of its own. */
 .remove-row {
   display: inline-flex;

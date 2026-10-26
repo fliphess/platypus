@@ -21,10 +21,10 @@
         {{- end}}
       </tbody>
     </table>
-    {{template "pager" $.Data.Pager}}
     {{- else}}
     <p class="empty">No orphaned notes.</p>
     {{- end}}
+    {{- if gt .Data.Pager.Total 0}}{{template "pager" .Data.Pager}}{{end}}
   </div>
 </div>
 {{template "admin-close"}}

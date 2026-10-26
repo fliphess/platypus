@@ -57,7 +57,7 @@ func groupsFromClaim(claims map[string]any, name string) ([]string, error) {
 func cleanGroups(raw []string) ([]string, error) {
 	groups := make([]string, 0, len(raw))
 	for _, name := range raw {
-		group, err := textclean.Clean(name, textclean.GroupOptions)
+		group, err := textclean.Identifier(name, 200)
 		if err != nil {
 			return nil, fmt.Errorf("group name: %w", err)
 		}

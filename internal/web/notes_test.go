@@ -92,3 +92,23 @@ func TestUserTeamsCardShowsLinkedTeamAsFixed(t *testing.T) {
 		t.Errorf("a linked team offers a remove button: %s", row)
 	}
 }
+
+// A viewer who may list but not edit sees a disabled Edit action with the
+// reason, not a link that ends in Forbidden.
+func TestListOnlyViewerGetsNoEditLink(t *testing.T) {
+	h := newHarness(t)
+	secret := h.bootstrap()
+	h.elevate(secret)
+	h.addParameter("/apps/readonly", "value")
+	h.grant(editor, access.RuleInput{Kind: item.KindSSM, Pattern: "/*",
+		Permissions: authz.Permissions{List: true}})
+
+	body := h.get("/ssm", editor).body
+	if strings.Contains(body, `href="/ssm/edit?name=%2fapps%2freadonly"`) ||
+		strings.Contains(body, `href="/ssm/edit?name=/apps/readonly"`) {
+		t.Error("a list-only viewer is offered an Edit link")
+	}
+	if !strings.Contains(body, `aria-disabled="true"`) {
+		t.Error("the Edit action does not explain that it is unavailable")
+	}
+}

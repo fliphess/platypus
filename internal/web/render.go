@@ -294,6 +294,7 @@ var notices = map[string]string{
 	"pruned":       "Old audit events were deleted.",
 	"factor-added": "Your second factor is set up.",
 	"removed":      "Removed.",
+	"restored":     "Restored. The secret is readable again.",
 }
 
 func isHTMX(r *http.Request) bool {

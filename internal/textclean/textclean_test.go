@@ -1,6 +1,7 @@
 package textclean
 
 import (
+	"html"
 	"strings"
 	"testing"
 )
@@ -64,4 +65,27 @@ func FuzzCleanRemovesTags(f *testing.F) {
 			t.Fatalf("Clean(%q) = %q still contains a tag", in, out)
 		}
 	})
+}
+
+// A bounded number of decode rounds must still never leave markup behind.
+func TestNestedEncodedTagsLeaveNoMarkup(t *testing.T) {
+	nested := html.EscapeString(html.EscapeString(html.EscapeString("<script>alert(1)</script>")))
+	got, err := Clean(nested, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.ContainsAny(got, "<>") {
+		t.Errorf("cleaned text still contains markup: %q", got)
+	}
+}
+
+// Identifiers are validated, not rewritten: markup is preserved exactly so it
+// cannot alias a different name.
+func TestIdentifierIsNotRewritten(t *testing.T) {
+	if got, err := Identifier("<b>payments</b>", 200); err != nil || got != "<b>payments</b>" {
+		t.Errorf("Identifier = %q, %v; want the exact name", got, err)
+	}
+	if _, err := Identifier("pay\x00ments", 200); err == nil {
+		t.Error("a control character was accepted in an identifier")
+	}
 }

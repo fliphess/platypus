@@ -149,6 +149,8 @@ await step("admin mode", async () => {
 });
 await step("create a policy with the rule editor", async () => {
   await page.goto(base + "/admin/policies/new");
+  // Deferred scripts attach the dirty-form handler; interact only after load.
+  await page.waitForLoadState("load");
   await page.fill("#name", "Everything for admin");
   await page.click("[data-add-rule]");
   let row = page.locator(".rules .rule-row").last();
@@ -308,6 +310,20 @@ await step("add a user ahead of their first login", async () => {
   await page.waitForURL("**/admin/users/*?notice=created");
   await page.waitForSelector("text=First login");
 });
+await step("user detail actions reach the server", async () => {
+  await page.goto(base + "/admin/users");
+  const href = await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll("#user-list tbody tr"))
+      .find((tr) => tr.textContent.includes("newbie@example.com"));
+    return row?.querySelector("a.person-name")?.getAttribute("href") ?? "";
+  });
+  if (!href) throw new Error("the new account is not listed");
+  await page.goto(base + href);
+  await page.click("button:has-text('Disable account')");
+  await page.waitForURL("**/admin/users/*?notice=saved");
+  await page.click("button:has-text('Enable account')");
+  await page.waitForURL("**/admin/users/*?notice=saved");
+});
 await step("search in teams and policies", async () => {
   await page.goto(base + "/admin/teams");
   await page.fill("input[name=q]", "payment");
@@ -412,7 +428,9 @@ await step("list and search", async () => {
 await step("Terraform-managed secret", async () => {
   await page.goto(base + "/secrets/item?name=prod/platform/rds");
   await page.waitForSelector(".alert.terraform");
-  if (!(await page.locator("button:has-text('Edit')").isDisabled())) throw new Error("Edit is not disabled");
+  if ((await page.locator("[aria-disabled=true]:has-text('Edit')").count()) === 0) {
+    throw new Error("Edit is not disabled with a reason");
+  }
   await shot(page, "06c-terraform");
 });
 await step("reveal and hide", async () => {
@@ -498,6 +516,12 @@ await step("audit trail: filters apply as you change them", async () => {
   }, undefined, { timeout: 5000 }).catch(() => {
     throw new Error("the denied filter shows nothing");
   });
+  // The export link is rendered with the results, so it follows the filter.
+  const csvHref = await page.evaluate(() =>
+    document.querySelector("#audit-results a[href^='/admin/audit.csv']")?.getAttribute("href") ?? "");
+  if (!csvHref.includes("outcome=denied")) {
+    throw new Error(`the CSV link does not follow the filter: ${csvHref}`);
+  }
   // The row's toggle opens the full record; from there its user filters the
   // trail.
   await page.click("#audit-results .row-toggle");
@@ -696,6 +720,21 @@ await step("layout invariants hold", async () => {
     return when.right <= actions.left + 1;
   });
   if (!noOverlap) throw new Error("the actions overlap the timestamp");
+
+  // Choosing a page size survives the next search.
+  await page.goto(base + "/ssm");
+  await page.waitForSelector("#results table.items-table");
+  await page.selectOption(".page-size select[name=per_page]", "20");
+  await page.waitForTimeout(900);
+  await page.fill("input[name=q]", "payments");
+  await page.waitForTimeout(900);
+  const sizeKept = await page.evaluate(() => ({
+    select: document.querySelector(".page-size select[name=per_page]")?.value ?? "",
+    url: location.search,
+  }));
+  if (sizeKept.select !== "20" || !sizeKept.url.includes("per_page=20")) {
+    throw new Error(`the page size was lost by the search: ${JSON.stringify(sizeKept)}`);
+  }
 
   // People lists (users, team members) never overflow their card either.
   await page.goto(base + "/admin/users");

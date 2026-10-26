@@ -61,8 +61,14 @@ func TestTrail(t *testing.T) {
 		t.Fatalf("Prune = %d, %v", pruned, err)
 	}
 	remaining, _ := trail.List(ctx, audit.Filter{}, 0, 10)
-	if len(remaining) != 1 || remaining[0].Action != string(audit.ActionAuditPruned) {
-		t.Errorf("after prune: %+v (only the prune event should remain)", remaining)
+	// The attempt and the outcome both survive: pruning is never unaccountable.
+	if len(remaining) != 2 {
+		t.Fatalf("after prune: %+v (want the started and completed records)", remaining)
+	}
+	for _, event := range remaining {
+		if event.Action != string(audit.ActionAuditPruned) {
+			t.Errorf("after prune: %+v", remaining)
+		}
 	}
 }
 

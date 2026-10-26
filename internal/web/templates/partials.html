@@ -8,7 +8,7 @@
 {{define "csrf"}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}
 
 {{/* A button that is disabled with the reason the user lacks a permission. */}}
-{{define "denied-button"}}<button type="button" disabled title="{{.Reason}}">{{.Label}}</button>{{end}}
+{{define "denied-button"}}<span class="button" role="button" tabindex="0" aria-disabled="true" title="{{.Reason}}" aria-label="{{.Label}}: {{.Reason}}">{{.Label}}</span>{{end}}
 
 {{/* Confirmation dialog for a change. Data: Summary, Action (URL), Form (id of the form to submit). */}}
 {{define "confirm"}}

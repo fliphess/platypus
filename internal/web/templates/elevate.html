@@ -3,7 +3,7 @@
 <h1>Admin mode</h1>
 <p class="muted">Admin mode opens the admin pages for a while. It doesn't give access to values.</p>
 
-{{- if not .Factors.Any}}
+{{- if not (or .Factors.Any (gt .Factors.RecoveryCodesLeft 0))}}
 <div class="alert info">
   <p>You need a second factor before you can use admin mode.</p>
   <p><a class="button primary" href="/me/security">Set up a second factor</a></p>

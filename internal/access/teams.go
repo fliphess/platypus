@@ -34,7 +34,7 @@ func (in TeamInput) clean() (TeamInput, error) {
 	if err != nil {
 		return TeamInput{}, problem.Invalid("Team description: %v.", err)
 	}
-	group, err := textclean.Clean(in.IDPGroup, textclean.GroupOptions)
+	group, err := textclean.Identifier(in.IDPGroup, 200)
 	if err != nil {
 		return TeamInput{}, problem.Invalid("Identity-provider group: %v.", err)
 	}

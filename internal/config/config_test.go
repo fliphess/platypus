@@ -304,3 +304,26 @@ func TestDocumentationFileIsUpToDate(t *testing.T) {
 		t.Fatal("internal/docs/pages/90-configuration.txt is out of date: run go generate ./internal/config")
 	}
 }
+
+// The public test key is refused however base64 happens to be spelled: line
+// breaks are ignored by the decoder, so they must not bypass the guard.
+func TestPublicKeyIsRefusedInAnyEncoding(t *testing.T) {
+	env := productionEnv()
+	env["PLATYPUS_ENCRYPTION_KEY"] = TestEncryptionKey[:8] + "\n" + TestEncryptionKey[8:]
+	if _, err := load(env); err == nil || !strings.Contains(err.Error(), "public test key") {
+		t.Errorf("a split public key was accepted: %v", err)
+	}
+}
+
+// Secrets are opaque: whitespace in a password is significant.
+func TestSecretWhitespaceIsPreserved(t *testing.T) {
+	env := productionEnv()
+	env["PLATYPUS_DB_PASSWORD"] = "  spaces  "
+	cfg, err := load(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Database.Password.Reveal(); got != "  spaces  " {
+		t.Errorf("password stored as %q", got)
+	}
+}

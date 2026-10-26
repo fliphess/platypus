@@ -66,8 +66,11 @@ func (s *Service) VerifyRecoveryCode(ctx context.Context, userID int64, code str
 			continue
 		}
 		if _, err := s.queries.UseRecoveryCode(ctx, candidate.ID); err != nil {
-			// Used by a concurrent request a moment ago.
-			return s.guard.Failed(ctx, userID, "recovery code")
+			if database.IsNoRows(err) {
+				// Used by a concurrent request a moment ago.
+				return s.guard.Failed(ctx, userID, "recovery code")
+			}
+			return fmt.Errorf("use recovery code: %w", err)
 		}
 		s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionRecoveryCodeUsed, Outcome: audit.Allowed,
 			Details: map[string]any{"codes_left": len(candidates) - 1}})

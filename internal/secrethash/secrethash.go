@@ -68,8 +68,14 @@ func decode(encoded string) (parameters, []byte, []byte, error) {
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &p.memoryKiB, &p.passes, &p.threads); err != nil {
 		return parameters{}, nil, nil, errors.New("bad argon2 parameters")
 	}
+	// The hash comes from the database, but a corrupt or imported row must
+	// fail closed instead of panicking or asking for unbounded memory.
+	if p.memoryKiB < 8 || p.memoryKiB > 1<<20 || p.passes < 1 || p.passes > 16 ||
+		p.threads < 1 || p.threads > 64 || p.memoryKiB < 8*uint32(p.threads) {
+		return parameters{}, nil, nil, errors.New("argon2 parameters out of range")
+	}
 	salt, err := encoding.DecodeString(parts[4])
-	if err != nil {
+	if err != nil || len(salt) < 8 || len(salt) > 64 {
 		return parameters{}, nil, nil, errors.New("bad salt")
 	}
 	key, err := encoding.DecodeString(parts[5])

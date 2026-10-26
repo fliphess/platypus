@@ -1,6 +1,8 @@
 {{- define "row-edit"}}
 {{- if or .TerraformManaged .DeletedAt}}
 <span class="button small" aria-disabled="true" title="{{if .DeletedAt}}Restore the secret first{{else}}Managed by Terraform{{end}}">Edit</span>
+{{- else if not .CanEdit}}
+<span class="button small" aria-disabled="true" title="{{.EditDenied}}" aria-label="Edit {{.Name}}: {{.EditDenied}}">Edit</span>
 {{- else}}
 <a class="button small" href="/{{kindPath .Kind}}/edit?name={{.Name}}" aria-label="Edit {{.Name}}">Edit</a>
 {{- end}}
@@ -32,6 +34,7 @@
 <form class="search-bar" method="get" action="/{{kindPath .Listing.Kind}}"
       hx-get="/{{kindPath .Listing.Kind}}" hx-target="#results" hx-select="#results" hx-swap="outerHTML" hx-push-url="true"
       hx-trigger="input changed delay:300ms from:find input[name=q], submit">
+  {{- if .Pager.PerPage}}<input type="hidden" name="per_page" value="{{.Pager.PerPage}}">{{end}}
   <input type="search" name="q" value="{{.Listing.Search}}" placeholder="Search by name, path, description or note" aria-label="Search" autofocus>
   <button type="submit">Search</button>
 </form>
@@ -110,7 +113,7 @@
   </table>
   {{- end}}
   </div>
-  {{- if .Items}}{{template "pager" $.Pager}}{{end}}
+  {{- if gt .Total 0}}{{template "pager" $.Pager}}{{end}}
 </div>
 {{- end}}
 {{end}}

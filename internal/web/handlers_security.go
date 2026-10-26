@@ -98,14 +98,16 @@ func (s *Server) startTOTP(w http.ResponseWriter, r *http.Request) error {
 		Secret: enrollment.Secret,
 		// html/template refuses data: URLs from strings; this one is a PNG
 		// platypus rendered itself, so it is marked safe explicitly.
-		QRCode: template.URL(enrollment.QRCode), //nolint:gosec // see above
+		QRCode:    template.URL(enrollment.QRCode), //nolint:gosec // see above
+		CSRFToken: viewerFrom(r.Context()).Session.CSRFToken,
 	})
 	return nil
 }
 
 type totpSetupData struct {
-	Secret string
-	QRCode template.URL
+	Secret    string
+	QRCode    template.URL
+	CSRFToken string
 }
 
 func (s *Server) confirmTOTP(w http.ResponseWriter, r *http.Request) error {

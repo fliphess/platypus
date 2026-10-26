@@ -15,6 +15,7 @@
         hx-get="/admin/users" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
         hx-target="#user-list" hx-select="#user-list" hx-swap="outerHTML" hx-push-url="true">
     {{- if .WithoutAccess}}<input type="hidden" name="access" value="none">{{end}}
+    {{- if .Pager.PerPage}}<input type="hidden" name="per_page" value="{{.Pager.PerPage}}">{{end}}
     <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or email" aria-label="Search users">
     <button type="submit">Search</button>
   </form>
@@ -75,6 +76,7 @@
         <span class="actions">
           <a class="button small" href="/admin/users/{{.ID}}">Details</a>
           <form class="inline-form" hx-post="/admin/users/{{.ID}}/disabled" method="post" action="/admin/users/{{.ID}}/disabled">
+            {{template "csrf" $data.CSRFToken}}
             <input type="hidden" name="disabled" value="{{if .DisabledAt}}false{{else}}true{{end}}">
             <input type="hidden" name="return" value="{{$data.ReturnTo}}">
             <button type="submit" class="small{{if not .DisabledAt}} danger{{end}}">{{if .DisabledAt}}Enable{{else}}Disable{{end}}</button>

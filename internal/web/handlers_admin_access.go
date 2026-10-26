@@ -35,6 +35,8 @@ type usersData struct {
 	// ReturnTo is the list's own URL, sent by the per-row forms so an admin
 	// stays on the list.
 	ReturnTo string
+	// CSRFToken lets the per-row native form work without htmx.
+	CSRFToken string
 }
 
 // adminUsers lists users, a page at a time. With ?access=none it lists only
@@ -54,7 +56,8 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) error {
 	}
 	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
 	data := usersData{Users: users, Search: filter.Search, WithoutAccess: filter.WithoutAccess,
-		Total: total, Page: pageNumber, LastPage: lastPage, ReturnTo: usersReturnTo(filter, pageNumber)}
+		Total: total, Page: pageNumber, LastPage: lastPage, ReturnTo: usersReturnTo(filter, pageNumber),
+		CSRFToken: viewerFrom(r.Context()).Session.CSRFToken}
 	data.Pager = newPager("/admin/users", "#user-list",
 		fmt.Sprintf("Page %d of %d · %d users", pageNumber, lastPage, total),
 		r.URL.Query(), pageNumber, lastPage, size, total)
@@ -556,11 +559,28 @@ func (s *Server) setTeamPolicies(r *http.Request, id int64) error {
 // deliberately no free-text email entry: an open field invites typos that
 // hand access to the wrong address (typosquatting).
 func (s *Server) addTeamMember(r *http.Request, id int64) error {
-	userID, err := strconv.ParseInt(r.PostFormValue("user_id"), 10, 64)
-	if err != nil || userID <= 0 {
+	if err := r.ParseForm(); err != nil {
+		return problem.Invalid("The form could not be read.")
+	}
+	// The member editor can hold several lines; add every chosen person.
+	added := false
+	for _, raw := range r.PostForm["user_id"] {
+		if raw == "" {
+			continue
+		}
+		userID, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || userID <= 0 {
+			return problem.Invalid("Pick a person from the list.")
+		}
+		if err := s.services.Access.AddTeamMember(r.Context(), id, userID); err != nil {
+			return err
+		}
+		added = true
+	}
+	if !added {
 		return problem.Invalid("Pick a person from the list.")
 	}
-	return s.services.Access.AddTeamMember(r.Context(), id, userID)
+	return nil
 }
 
 // maxCandidates caps the people the member picker shows at once.

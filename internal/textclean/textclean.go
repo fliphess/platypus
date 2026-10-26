@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -18,6 +19,11 @@ import (
 
 var strict = bluemonday.StrictPolicy()
 
+// leftoverTags matches markup that the bounded decode rounds have just
+// revealed; it requires a tag-like first character so plain "a < b > c" text
+// is left alone.
+var leftoverTags = regexp.MustCompile(`</?[a-zA-Z][^>]*>`)
+
 // Options control how text is cleaned.
 type Options struct {
 	// MaxLength is the maximum number of characters after cleaning.
@@ -26,10 +32,28 @@ type Options struct {
 	Multiline bool
 }
 
-// GroupOptions cleans one identity-provider group name. The names a login
-// reports and the links admins enter go through these same options, so they
-// match.
-var GroupOptions = Options{MaxLength: 200}
+// Identifier validates a value used as an authorization key, such as an
+// identity-provider group name. Surrounding whitespace is trimmed; nothing
+// else is rewritten, because stripping markup or entities out of an
+// identifier would silently merge two distinct identities.
+func Identifier(text string, maxLength int) (string, error) {
+	if !utf8.ValidString(text) {
+		return "", errors.New("the text contains invalid characters")
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return "", nil
+	}
+	for _, r := range text {
+		if unicode.IsControl(r) || isDirectionControl(r) || r == utf8.RuneError {
+			return "", errors.New("the text contains control characters")
+		}
+	}
+	if n := utf8.RuneCountInString(text); maxLength > 0 && n > maxLength {
+		return "", fmt.Errorf("the text can be at most %d characters (it is %d)", maxLength, n)
+	}
+	return text, nil
+}
 
 // Clean removes HTML tags (including encoded ones), control characters and
 // Unicode direction overrides, normalises line breaks and trims the result.
@@ -69,7 +93,8 @@ func Clean(text string, opts Options) (string, error) {
 
 // stripTags removes HTML until nothing changes, so tags hidden behind HTML
 // entities (&lt;script&gt;) are removed too. bluemonday returns escaped text;
-// it is unescaped again because platypus stores plain text.
+// it is unescaped again because platypus stores plain text. The final decode
+// can themselves introduce a tag, so one last tag strip follows the loop.
 func stripTags(text string) string {
 	for range 3 {
 		stripped := html.UnescapeString(strict.Sanitize(text))
@@ -78,7 +103,7 @@ func stripTags(text string) string {
 		}
 		text = stripped
 	}
-	return text
+	return leftoverTags.ReplaceAllString(text, "")
 }
 
 // isDirectionControl reports Unicode characters that change text direction.

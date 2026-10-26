@@ -80,6 +80,7 @@
 <img class="qr" src="{{.QRCode}}" alt="QR code for your authenticator app">
 <p>Key: <code>{{.Secret}}</code></p>
 <form hx-post="/me/security/totp/confirm" hx-target="find .messages" method="post" action="/me/security/totp/confirm">
+  {{template "csrf" .CSRFToken}}
   <label for="totp-code">Code from the app</label>
   <input id="totp-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
   <div class="messages"></div>

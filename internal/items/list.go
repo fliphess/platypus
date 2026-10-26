@@ -35,6 +35,10 @@ type ListedItem struct {
 	// Note is the full note, so the list's detail row can show its text
 	// without opening the edit form.
 	Note *catalog.Note
+	// CanEdit and EditDenied mirror the detail page's action, so a list-only
+	// viewer is not offered an Edit link that ends in Forbidden.
+	CanEdit    bool
+	EditDenied string
 }
 
 // First and Last number the items on this page, counting from 1.
@@ -81,6 +85,9 @@ func (s *Service) List(ctx context.Context, subject authz.Subject, kind item.Kin
 		if note, ok := notes[summary.Name]; ok {
 			listing.Items[i].Note = &note
 		}
+		decision := subject.Can(authz.Edit, kind, summary.Name)
+		listing.Items[i].CanEdit = decision.Allowed
+		listing.Items[i].EditDenied = decision.Reason
 	}
 
 	// The audit row names what was listed: the list itself, plus the search

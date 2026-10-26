@@ -40,8 +40,21 @@ func (r *reader) string(v Var) string {
 	return r.raw(v)
 }
 
+// rawExact is raw without normalisation: a secret is opaque, so significant
+// leading or trailing whitespace must survive.
+func (r *reader) rawExact(v Var) string {
+	value := r.getenv(v.Name)
+	if value == "" {
+		value = v.Default
+	}
+	if value == "" && v.Required {
+		r.fail(v, "is required")
+	}
+	return value
+}
+
 func (r *reader) secret(v Var) sensitive.Value {
-	return sensitive.New(r.raw(v))
+	return sensitive.New(r.rawExact(v))
 }
 
 func (r *reader) oneOf(v Var, allowed ...string) string {

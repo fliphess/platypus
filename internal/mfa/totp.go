@@ -84,8 +84,12 @@ func (s *Service) ConfirmTOTPEnrollment(ctx context.Context, user db.User, code 
 	if step == 0 {
 		return problem.Invalid("That code doesn't match. Check the time on your phone and try the next code.")
 	}
-	if err := s.useStep(ctx, user.ID, step); err != nil {
+	replay, err := s.useStep(ctx, user.ID, step)
+	if err != nil {
 		return err
+	}
+	if replay {
+		return problem.Invalid("That code was used already; wait for the next one.")
 	}
 	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionTOTPEnrolled, Outcome: audit.Allowed})
 	return nil
@@ -101,7 +105,13 @@ func (s *Service) VerifyTOTP(ctx context.Context, userID int64, code string) err
 	if step == 0 {
 		return s.guard.Failed(ctx, userID, "authenticator code")
 	}
-	if err := s.useStep(ctx, userID, step); err != nil {
+	replay, err := s.useStep(ctx, userID, step)
+	if err != nil {
+		// A database failure is not a wrong code: do not lock the user out
+		// for the store being unavailable.
+		return err
+	}
+	if replay {
 		return s.guard.Failed(ctx, userID, "authenticator code")
 	}
 	return s.guard.Succeeded(ctx, userID)
@@ -155,10 +165,12 @@ func (s *Service) matchTOTP(ctx context.Context, userID int64, code string, conf
 
 // useStep marks a time step as used. It fails when the step, or a later one,
 // was used before: the same code can't be replayed.
-func (s *Service) useStep(ctx context.Context, userID, step int64) error {
+// useStep consumes a time step. The bool reports a code that was already
+// used; any other error is infrastructure and must not count as an attempt.
+func (s *Service) useStep(ctx context.Context, userID, step int64) (bool, error) {
 	_, err := s.queries.UseTOTPStep(ctx, db.UseTOTPStepParams{UserID: userID, Step: step})
 	if database.IsNoRows(err) {
-		return problem.Invalid("That code was used already; wait for the next one.")
+		return true, nil
 	}
-	return err
+	return false, err
 }

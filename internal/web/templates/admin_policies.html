@@ -7,6 +7,7 @@
   <form class="search-bar" method="get" action="/admin/policies"
         hx-get="/admin/policies" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
         hx-target="#policy-list" hx-select="#policy-list" hx-swap="outerHTML" hx-push-url="true">
+    {{- if .Pager.PerPage}}<input type="hidden" name="per_page" value="{{.Pager.PerPage}}">{{end}}
     <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or description" aria-label="Search policies">
     <button type="submit">Search</button>
   </form>

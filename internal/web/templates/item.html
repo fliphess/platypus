@@ -147,6 +147,7 @@
   {{- /* The reveal control comes back after hiding: no refresh needed. */}}
   <template data-reveal-restore>
     <form hx-post="/{{kindPath .Kind}}/reveal" hx-target="#{{.Target}}" class="inline-form" method="post" action="/{{kindPath .Kind}}/reveal">
+      {{template "csrf" .CSRFToken}}
       <input type="hidden" name="name" value="{{.Name}}">
       {{- with .Version}}<input type="hidden" name="version" value="{{.}}">{{end}}
       <span class="value-hidden">••••••••</span>

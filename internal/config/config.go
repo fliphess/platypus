@@ -255,6 +255,9 @@ func (c Config) validate() []error {
 		}
 	}
 
+	// Compare decoded bytes: base64 decoders ignore line breaks, so the same
+	// public key spelled across two lines must be refused just the same.
+	configuredKey, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(c.EncryptionKey.Reveal()))
 	if !c.TestMode {
 		if c.PublicURL.Scheme != "https" {
 			add("%s must use https outside test mode", varPublicURL.Name)
@@ -262,11 +265,11 @@ func (c Config) validate() []error {
 		if c.Database.SSLMode == "disable" {
 			add("%s=disable is only allowed in test mode", varDBSSLMode.Name)
 		}
-		if c.EncryptionKey.Reveal() == TestEncryptionKey {
+		if bytes.Equal(configuredKey, decodedKey(TestEncryptionKey)) {
 			add("%s is the public test key, which is only allowed in test mode", varEncryptionKey.Name)
 		}
 		for _, example := range exampleEncryptionKeys {
-			if c.EncryptionKey.Reveal() == example {
+			if bytes.Equal(configuredKey, decodedKey(example)) {
 				add("%s is a published example key; generate one with openssl rand -base64 32", varEncryptionKey.Name)
 			}
 		}
@@ -277,7 +280,7 @@ func (c Config) validate() []error {
 	if c.Database.MaxConns < 2 {
 		add("%s must be at least 2", varDBMaxConns.Name)
 	}
-	if key, err := base64.StdEncoding.DecodeString(c.EncryptionKey.Reveal()); err != nil || len(key) != 32 {
+	if key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(c.EncryptionKey.Reveal())); err != nil || len(key) != 32 {
 		add("%s must be 32 bytes, base64-encoded", varEncryptionKey.Name)
 	} else if bytes.Count(key, key[:1]) == len(key) {
 		add("%s is one byte repeated; generate it with openssl rand -base64 32", varEncryptionKey.Name)
@@ -366,4 +369,11 @@ func (c Config) validateAuth() []error {
 		}
 	}
 	return errs
+}
+
+// decodedKey returns the bytes a base64 key denotes. A malformed key decodes
+// to nil and is reported by the length check.
+func decodedKey(encoded string) []byte {
+	key, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
+	return key
 }

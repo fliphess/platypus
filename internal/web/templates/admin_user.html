@@ -19,20 +19,20 @@
       {{- if $u.DisabledAt}}<span class="badge danger">disabled</span> since {{time $u.DisabledAt}}{{else if $u.LockedAt}}<span class="badge danger">locked</span> since {{time $u.LockedAt}} after failed second-factor attempts{{else}}<span class="badge ok">active</span>{{end}}
     </dd>
   </dl>
-  <div class="messages"></div>
+  <div class="messages" id="account-messages"></div>
   <div class="actions">
-    <form hx-post="/admin/users/{{$u.ID}}/admin" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/admin">
+    <form hx-post="/admin/users/{{$u.ID}}/admin" hx-target="#account-messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/admin">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
       <input type="hidden" name="admin" value="{{if $u.IsAdmin}}false{{else}}true{{end}}">
       <button type="submit">{{if $u.IsAdmin}}Remove from admin group{{else}}Add to admin group{{end}}</button>
     </form>
-    <form hx-post="/admin/users/{{$u.ID}}/disabled" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/disabled">
+    <form hx-post="/admin/users/{{$u.ID}}/disabled" hx-target="#account-messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/disabled">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
       <input type="hidden" name="disabled" value="{{if $u.DisabledAt}}false{{else}}true{{end}}">
       <button type="submit"{{if not $u.DisabledAt}} class="danger"{{end}}>{{if $u.DisabledAt}}Enable account{{else}}Disable account{{end}}</button>
     </form>
     {{- if $u.LockedAt}}
-    <form hx-post="/admin/users/{{$u.ID}}/unlock" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/unlock">
+    <form hx-post="/admin/users/{{$u.ID}}/unlock" hx-target="#account-messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/unlock">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
       <button type="submit" class="primary">Unlock</button>
     </form>

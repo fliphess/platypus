@@ -179,14 +179,24 @@ func csvSafe(cell string) string {
 // pruneBatch is how many events one delete removes, keeping locks short.
 const pruneBatch = 5000
 
-// Prune deletes events older than retentionDays and records how many. A
-// retention of 0 deletes everything older than now (useful in CI).
+// Prune deletes events older than retentionDays and records the attempt
+// before anything is deleted, then its outcome. The attempt record means a
+// crash or a failure midway can never leave deleted history without a trace;
+// a retention of 0 deletes everything older than now (useful in CI).
 func (t *Trail) Prune(ctx context.Context, retentionDays int) (int64, error) {
 	before := t.now().AddDate(0, 0, -retentionDays)
+	if err := t.recorder.Record(ctx, Event{Action: ActionAuditPruned, Outcome: Allowed,
+		Details: map[string]any{"phase": "started", "before": before, "retention_days": retentionDays}}); err != nil {
+		// Without the attempt record, deleting would be unaccountable.
+		return 0, fmt.Errorf("record prune attempt: %w", err)
+	}
 	var total int64
 	for {
 		deleted, err := t.queries.PruneAuditEvents(ctx, db.PruneAuditEventsParams{Before: before, BatchSize: pruneBatch})
 		if err != nil {
+			t.recorder.RecordBestEffort(ctx, Event{Action: ActionAuditPruned, Outcome: Error,
+				Reason:  "pruning failed",
+				Details: map[string]any{"phase": "failed", "deleted": total, "before": before}})
 			return total, fmt.Errorf("prune audit events: %w", err)
 		}
 		total += deleted
@@ -195,6 +205,6 @@ func (t *Trail) Prune(ctx context.Context, retentionDays int) (int64, error) {
 		}
 	}
 	err := t.recorder.Record(ctx, Event{Action: ActionAuditPruned, Outcome: Allowed,
-		Details: map[string]any{"deleted": total, "before": before, "retention_days": retentionDays}})
+		Details: map[string]any{"phase": "completed", "deleted": total, "before": before, "retention_days": retentionDays}})
 	return total, err
 }

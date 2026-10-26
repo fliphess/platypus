@@ -7,6 +7,7 @@
   <form class="search-bar" method="get" action="/admin/teams"
         hx-get="/admin/teams" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
         hx-target="#team-list" hx-select="#team-list" hx-swap="outerHTML" hx-push-url="true">
+    {{- if .Pager.PerPage}}<input type="hidden" name="per_page" value="{{.Pager.PerPage}}">{{end}}
     <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or description" aria-label="Search teams">
     <button type="submit">Search</button>
   </form>

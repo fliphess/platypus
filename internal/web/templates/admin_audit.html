@@ -6,6 +6,7 @@
 <form class="card" method="get" action="/admin/audit"
       hx-get="/admin/audit" hx-trigger="change, input changed delay:400ms from:find input[type=search]"
       hx-target="#audit-results" hx-select="#audit-results" hx-swap="outerHTML" hx-push-url="true">
+  {{- if .Pager.PerPage}}<input type="hidden" name="per_page" value="{{.Pager.PerPage}}">{{end}}
   <div class="search-bar">
     <input type="search" name="q" value="{{.Filter.Search}}" placeholder="Search anything in the table" aria-label="Search the audit trail">
     <button type="submit">Search</button>
@@ -32,10 +33,10 @@
       </select>
     </label>
   </div>
-  <div class="actions"><a class="button" href="{{.CSVLink}}">Download CSV</a><a class="button" href="/admin/audit">Clear filters</a></div>
+  <div class="actions"><a class="button" href="/admin/audit">Clear filters</a></div>
 </form>
 
-<div id="audit-results">{{template "audit-results" .}}</div>
+{{template "audit-results" .}}
 
 <div class="card">
   <h2>Delete old events</h2>
@@ -99,6 +100,7 @@
     {{- else}}
     <p class="muted">No events match.</p>
     {{- end}}
+    <div class="actions"><a class="button" href="{{.CSVLink}}">Download CSV</a></div>
     {{template "pager" .Pager}}
   </div>
 </div>

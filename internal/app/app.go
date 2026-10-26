@@ -30,6 +30,7 @@ import (
 	"platypus/internal/items"
 	"platypus/internal/itemsync"
 	"platypus/internal/lockout"
+	"platypus/internal/logging"
 	"platypus/internal/mfa"
 	"platypus/internal/ratelimit"
 	"platypus/internal/session"
@@ -83,7 +84,7 @@ func New(ctx context.Context, cfg config.Config, log *zap.Logger) (*App, error) 
 	}
 
 	queries := db.New(pool)
-	recorder := audit.NewRecorder(queries, log)
+	recorder := audit.NewRecorder(queries, logging.NewAudit())
 	guard := lockout.NewGuard(queries, recorder)
 	limiter := ratelimit.New(queries)
 	cat := catalog.New(queries)

@@ -70,7 +70,7 @@
 {{/* The value editor. Swapped in again, filled, by "Load current value". */}}
 {{define "value-editor"}}
 <div data-value-editor>
-  <label>Value
+  <label for="value">Value
     {{- if not .IsNew}}{{if .ValueShown}}<span class="hint">current value loaded; change it or leave it as is</span>{{else}}<span class="hint">leave empty to keep the current value</span>{{end}}{{end}}
   </label>
   <div class="editor-bar">
@@ -86,7 +86,7 @@
     {{- end}}
   </div>
   <p class="alert warning editor-message" hidden></p>
-  <textarea name="value" rows="8" spellcheck="false" autocomplete="off"{{if .IsNew}} required{{end}}
+  <textarea id="value" name="value" rows="8" spellcheck="false" autocomplete="off"{{if .IsNew}} required{{end}}
     placeholder="{{if and (not .IsNew) (not .ValueShown)}}******** (unchanged){{end}}">{{.Value}}</textarea>
   <div class="field-rows" hidden></div>
   <button type="button" data-add-field hidden>Add field</button>

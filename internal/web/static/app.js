@@ -22,24 +22,11 @@
       dialog().showModal();
     }
     hideRevealedValuesLater(event.detail.target);
-    // A swapped fragment arrives as server-rendered UTC text. Localise it
-    // before it settles, so a search never shows UTC.
-    localizeTimes(event.detail.target);
   });
 
-  document.addEventListener("htmx:afterSettle", () => localizeTimes());
-  // Restored tabs and back/forward cache hits get no DOMContentLoaded.
-  window.addEventListener("pageshow", () => {
-    announceZone();
-    localizeTimes();
-  });
-  // Last line of defence: any <time> that lands in the document, whatever
-  // inserted it, is converted.
-  let localizeSoon = 0;
-  new MutationObserver(() => {
-    clearTimeout(localizeSoon);
-    localizeSoon = setTimeout(() => localizeTimes(), 40);
-  }).observe(document.body, { childList: true, subtree: true });
+  // Restored tabs and back/forward cache hits get no DOMContentLoaded: make
+  // sure the server knows the zone, without rewriting anything.
+  window.addEventListener("pageshow", () => announceZone());
 
   // "Load current value" swaps in a new, filled editor: wire it up.
   document.addEventListener("htmx:load", (event) => {
@@ -50,28 +37,28 @@
     });
   });
 
-  // Filtering a long picker only hides rows: a checked row that is filtered
-  // out stays checked, so nothing silently loses its selection.
-  document.addEventListener("input", (event) => {
-    const input = event.target.closest("[data-filter-target]");
-    if (!input) return;
-    const list = document.querySelector(input.dataset.filterTarget);
-    if (!list) return;
-    const term = input.value.trim().toLowerCase();
-    let shown = 0;
-    list.querySelectorAll("[data-filter-item]").forEach((row) => {
-      const match = term === "" || row.textContent.toLowerCase().includes(term);
-      row.hidden = !match;
-      if (match) shown += 1;
+  // The pager changes the list size by swapping only the results; keep the
+  // toolbar's hidden value in step so the next search does not undo it.
+  document.addEventListener("change", (event) => {
+    if (!event.target.matches(".page-size select[name=per_page]")) return;
+    document.querySelectorAll('input[type="hidden"][name="per_page"]').forEach((input) => {
+      input.value = event.target.value;
     });
-    const empty = list.querySelector(".picker-empty");
-    if (empty) empty.hidden = shown > 0;
   });
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest("[data-dismiss]")) {
+    const dismiss = event.target.closest("[data-dismiss]");
+    if (dismiss) {
       event.preventDefault();
-      closeDialog();
+      if (dismiss.closest("dialog")) {
+        closeDialog();
+        return;
+      }
+      // An inline problem fragment: remove its alert and the button row.
+      const actions = dismiss.closest(".actions");
+      const alert = actions?.previousElementSibling;
+      if (alert?.classList.contains("alert")) alert.remove();
+      actions?.remove();
       return;
     }
     // A list row's details open in place; the control stays outside any
@@ -150,19 +137,45 @@
     const rows = editor.querySelector(".field-rows");
     const message = editor.querySelector(".editor-message");
     const addButton = editor.querySelector("[data-add-field]");
+    const form = editor.closest("form");
     let current = editor.querySelector("input[name=format]:checked")?.value ?? "text";
+    // loadedKeys is the size of the object the field editor opened with;
+    // fieldsDirty records that the user changed the rows themselves.
+    let loadedKeys = 0;
+    let fieldsDirty = false;
 
-    const say = (text) => { message.textContent = text; message.hidden = !text; };
+    const say = (text) => {
+      message.textContent = text;
+      message.hidden = !text;
+      // A duplicate key is not a warning: the form must not submit the stale
+      // textarea while the visible fields are invalid.
+      textarea.setCustomValidity(text);
+    };
 
-    function addRow(key = "", value = "") {
+    function addRow(key = "", value = "", loaded = false) {
       const row = document.createElement("div");
       row.className = "field-row";
+      row.dataset.loaded = loaded ? "true" : "false";
       const keyInput = Object.assign(document.createElement("input"), { type: "text", value: key, placeholder: "key" });
       const valueInput = Object.assign(document.createElement("input"), { type: "text", value: value, placeholder: "value" });
+      keyInput.setAttribute("aria-label", "Field key");
+      valueInput.setAttribute("aria-label", "Field value");
       const remove = Object.assign(document.createElement("button"), { type: "button", textContent: "Remove" });
-      remove.addEventListener("click", () => { row.remove(); syncFromFields(); });
-      keyInput.addEventListener("input", syncFromFields);
-      valueInput.addEventListener("input", syncFromFields);
+      remove.setAttribute("aria-label", `Remove field ${key || "without a name"}`);
+      remove.addEventListener("click", () => {
+        row.remove();
+        fieldsDirty = true;
+        syncFromFields();
+      });
+      keyInput.addEventListener("input", () => {
+        row.dataset.loaded = "false";
+        fieldsDirty = true;
+        syncFromFields();
+      });
+      valueInput.addEventListener("input", () => {
+        fieldsDirty = true;
+        syncFromFields();
+      });
       row.append(keyInput, valueInput, remove);
       rows.append(row);
     }
@@ -171,21 +184,25 @@
       const entries = new Map();
       for (const row of rows.querySelectorAll(".field-row")) {
         const [key, value] = row.querySelectorAll("input");
-        if (key.value === "") continue;
+        const loaded = row.dataset.loaded === "true";
+        // A blank new row is nothing; an empty key loaded from the object is
+        // a real, valid key and must survive.
+        if (key.value === "" && !loaded) continue;
         if (entries.has(key.value)) {
           say(`The key ${JSON.stringify(key.value)} appears more than once.`);
-          return;
+          return false;
         }
         entries.set(key.value, value.value);
       }
-      if (entries.size === 0 && rows.querySelectorAll(".field-row").length > 0) {
-        // Every field removed: that means an empty object, not "keep the old".
-        textarea.value = "{}";
-        say("");
-        return;
+      if (entries.size === 0) {
+        // Removing every field of an object means an empty object; an
+        // untouched empty editor means "keep the old value".
+        textarea.value = loadedKeys > 0 || fieldsDirty ? "{}" : "";
+      } else {
+        textarea.value = JSON.stringify(Object.fromEntries(entries), null, 2);
       }
-      textarea.value = entries.size ? JSON.stringify(Object.fromEntries(entries), null, 2) : "";
       say("");
+      return true;
     }
 
     function showFields(show) {
@@ -197,6 +214,12 @@
     editor.querySelectorAll("input[name=format]").forEach((radio) => {
       radio.addEventListener("change", () => {
         const next = radio.value;
+        if (next === current) return;
+        // Never leave fields mode with an invalid, stale textarea behind.
+        if (current === "fields" && !syncFromFields()) {
+          editor.querySelector('input[name="format"][value="fields"]').checked = true;
+          return;
+        }
         say("");
         if (next === "fields") {
           let object = {};
@@ -216,12 +239,14 @@
             editor.querySelector(`input[name="format"][value="${current}"]`).checked = true;
             return;
           }
+          loadedKeys = Object.keys(object).length;
+          fieldsDirty = false;
           rows.replaceChildren();
-          Object.entries(object).forEach(([k, v]) => addRow(k, v));
+          Object.entries(object).forEach(([k, v]) => addRow(k, v, true));
           if (rows.childElementCount === 0) addRow();
           showFields(true);
         } else {
-          if (current === "fields") syncFromFields();
+          showFields(false);
           if (next === "json" && textarea.value.trim() !== "") {
             try {
               textarea.value = JSON.stringify(JSON.parse(textarea.value), null, 2);
@@ -229,11 +254,19 @@
               say("The current value is not valid JSON yet; it will be checked when you save.");
             }
           }
-          showFields(false);
         }
         current = next;
       });
     });
+
+    // Belt and braces: even a programmatic submit cannot send an invalid
+    // field set while the visible editor shows a duplicate key.
+    form?.addEventListener("submit", (event) => {
+      if (current === "fields" && !syncFromFields()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
 
     addButton?.addEventListener("click", () => addRow());
   }
@@ -302,9 +335,10 @@
     editor.addEventListener("click", (event) => {
       const button = event.target.closest("[data-remove-rule]");
       if (button) {
+        // Capture the form first: after the row is gone it has no closest().
+        const form = button.closest("form");
         button.closest(".rule-row")?.remove();
         // The summary must follow structural changes as well as edits.
-        const form = button.closest("form");
         form?.querySelector(".rules")?.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
@@ -515,9 +549,19 @@
         event.returnValue = "";
       });
     });
+    // The dialog's Continue is the save. Clear the warning just before the
+    // request so a successful save can navigate, and put it back when the
+    // save failed: intent alone is not persistence.
     document.body.addEventListener("htmx:beforeRequest", (event) => {
+      if (!event.detail.elt.closest("#dialog-content")) return;
       const form = document.querySelector("form[data-dirty-form]");
-      if (form && event.detail.elt.closest("#dialog-content")) form.dataset.dirty = "false";
+      if (form) form.dataset.dirty = "false";
+    });
+    document.body.addEventListener("htmx:afterRequest", (event) => {
+      if (!event.detail.elt.closest("#dialog-content")) return;
+      if (event.detail.successful) return;
+      const form = document.querySelector("form[data-dirty-form]");
+      if (form) form.dataset.dirty = "true";
     });
   }
 

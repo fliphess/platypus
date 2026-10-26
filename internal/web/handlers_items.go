@@ -79,10 +79,11 @@ type revealData struct {
 	HideAfter int
 	// What to reveal again after the value hides itself: the kind, name and
 	// version of the item, and the id of the element the fragment lands in.
-	Kind    item.Kind
-	Name    string
-	Version string
-	Target  string
+	Kind      item.Kind
+	Name      string
+	Version   string
+	Target    string
+	CSRFToken string
 }
 
 func (s *Server) reveal(kind item.Kind) handlerFunc {
@@ -108,6 +109,7 @@ func (s *Server) reveal(kind item.Kind) handlerFunc {
 			Name:      r.PostFormValue("name"),
 			Version:   version,
 			Target:    target,
+			CSRFToken: viewerFrom(r.Context()).Session.CSRFToken,
 		})
 		return nil
 	}
