@@ -991,12 +991,18 @@ await step("visual regression", async () => {
     for (const [name, path, selector] of targets) {
       await page.goto(base + path);
       await page.waitForSelector(selector);
-      await page.evaluate(() => {
+      await page.evaluate(async () => {
         // Times are the only content that changes between identical runs.
         document.querySelectorAll("time").forEach((el) => { el.textContent = "2026-01-02 03:04"; });
         document.querySelectorAll(".status-strip, .toast").forEach((el) => el.remove());
+        // Capture from the same place every time: a leftover scroll offset
+        // shifts the text by a pixel and shows up as a spurious diff.
+        window.scrollTo(0, 0);
+        await document.fonts.ready;
       });
-      const shot = await page.screenshot();
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(250);
+      const shot = await page.screenshot({ animations: "disabled" });
       const file = `${dir}/${name}-${width}.png`;
       if (update) {
         fs.writeFileSync(file, shot);
@@ -1017,7 +1023,8 @@ await step("visual regression", async () => {
       compared += 1;
       if (pixels > 60) {
         fs.writeFileSync(`/work/shots/visual-${name}-${width}.png`, PNG.sync.write(diff));
-        failures.push(`${name}-${width}: ${pixels} pixels differ (see shots/visual-${name}-${width}.png)`);
+        fs.writeFileSync(`/work/shots/fresh-${name}-${width}.png`, shot);
+        failures.push(`${name}-${width}: ${pixels} pixels differ (see shots/visual-${name}-${width}.png and shots/fresh-${name}-${width}.png)`);
       }
     }
   }
