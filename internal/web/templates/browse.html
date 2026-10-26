@@ -55,6 +55,7 @@
     <li class="item-row">
       <details class="event">
         <summary class="item-grid">
+          <span class="summary-toggle" aria-hidden="true"></span>
           <span class="mono item-name" title="{{.Name}}">{{breakPath .Name}}</span>
           <span class="type-cell">{{with .SSMType}}<span class="badge">{{.}}</span>{{else}}<span class="muted">secret</span>{{end}}</span>
           <span class="state-cell">

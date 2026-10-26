@@ -511,16 +511,18 @@ await step("layout invariants hold", async () => {
   const auditAligned = await page.evaluate(() => {
     const header = Array.from(document.querySelectorAll("#audit-results .event-columns span"));
     const row = document.querySelector("#audit-results .event-grid");
-    const cells = Array.from(row.children);
+    const cells = Array.from(row.children).filter((el) => !el.classList.contains("summary-toggle"));
     return header.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2);
   });
   if (!auditAligned) throw new Error("audit header and fields are not aligned");
   const auditChevron = await page.evaluate(() => {
-    const before = getComputedStyle(document.querySelector("#audit-results .event-grid"), "::before");
-    return { width: parseFloat(before.width), border: before.borderRightWidth };
+    const toggle = document.querySelector("#audit-results .event-grid .summary-toggle");
+    const before = getComputedStyle(toggle, "::before");
+    return { size: Math.round(toggle.getBoundingClientRect().width), radius: getComputedStyle(toggle).borderRadius,
+             width: parseFloat(before.width), border: before.borderRightWidth };
   });
-  if (auditChevron.width < 6 || auditChevron.border !== "2px") {
-    throw new Error(`the audit disclosure is a dot, not a chevron: ${JSON.stringify(auditChevron)}`);
+  if (auditChevron.size < 20 || auditChevron.radius !== "50%" || auditChevron.border !== "2px") {
+    throw new Error(`the audit disclosure is not a circled chevron: ${JSON.stringify(auditChevron)}`);
   }
   const outcomeAligned = await page.evaluate(() => {
     const textLeft = (el) => {
@@ -576,7 +578,8 @@ await step("layout invariants hold", async () => {
   const items = await page.evaluate(() => {
     const list = document.querySelector("#results");
     const header = Array.from(document.querySelectorAll("#results .item-columns span"));
-    const cells = Array.from(document.querySelector("#results .item-grid").children);
+    const cells = Array.from(document.querySelector("#results .item-grid").children)
+      .filter((el) => !el.classList.contains("summary-toggle"));
     const edit = document.querySelector("#results .item-row > .row-edit");
     const offsets = cells.map((cell, i) => [Math.round(header[i].getBoundingClientRect().x), Math.round(cell.getBoundingClientRect().x)]);
     const editOffset = [Math.round(header.at(-1).getBoundingClientRect().x), Math.round(edit.getBoundingClientRect().x)];
@@ -611,12 +614,14 @@ await step("layout invariants hold", async () => {
     throw new Error("rows have no direct View action");
   }
   const chevron = await page.evaluate(() => {
-    const summary = document.querySelector("#results .item-grid");
-    const before = getComputedStyle(summary, "::before");
-    return { width: parseFloat(before.width), border: before.borderRightWidth, marker: getComputedStyle(summary).listStyleType };
+    const toggle = document.querySelector("#results .item-grid .summary-toggle");
+    const before = getComputedStyle(toggle, "::before");
+    const box = toggle.getBoundingClientRect();
+    return { size: Math.round(box.width), radius: getComputedStyle(toggle).borderRadius,
+             width: parseFloat(before.width), border: before.borderRightWidth };
   });
-  if (chevron.width < 6 || chevron.border !== "2px" || chevron.marker !== "none") {
-    throw new Error(`the item disclosure is a dot, not a chevron: ${JSON.stringify(chevron)}`);
+  if (chevron.size < 20 || chevron.radius !== "50%" || chevron.border !== "2px") {
+    throw new Error(`the item disclosure is not a circled chevron: ${JSON.stringify(chevron)}`);
   }
   await page.evaluate(() => document.querySelector("#results .item-row details").setAttribute("open", ""));
   if ((await page.locator("#results .item-row a[href^='/ssm/item?name=']").count()) === 0) {
@@ -713,11 +718,13 @@ await step("layout invariants hold", async () => {
     };
   });
   const toggleChevron = await page.evaluate(() => {
-    const before = getComputedStyle(document.querySelector("#user-list .row-toggle"), "::before");
-    return { width: parseFloat(before.width), border: before.borderRightWidth };
+    const toggle = document.querySelector("#user-list .row-toggle");
+    const before = getComputedStyle(toggle, "::before");
+    return { size: Math.round(toggle.getBoundingClientRect().width), radius: getComputedStyle(toggle).borderRadius,
+             width: parseFloat(before.width), border: before.borderRightWidth };
   });
-  if (toggleChevron.width < 6 || toggleChevron.border !== "2px") {
-    throw new Error(`the user row toggle is a dot, not a chevron: ${JSON.stringify(toggleChevron)}`);
+  if (toggleChevron.size < 20 || toggleChevron.radius !== "50%" || toggleChevron.border !== "2px") {
+    throw new Error(`the user row toggle is not a circled chevron: ${JSON.stringify(toggleChevron)}`);
   }
   if (separators.rowBorder !== "0px" || !separators.pagerBorder || separators.pagerBorder === "0px") {
     throw new Error(`the users list draws a double separator: ${JSON.stringify(separators)}`);

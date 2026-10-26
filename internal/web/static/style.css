@@ -470,26 +470,27 @@ td.mono-cell, .mono-cell {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1rem;
-  height: 1rem;
+  width: 1.4rem;
+  height: 1.4rem;
   padding: 0;
-  border: none;
-  background: none;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: var(--muted);
   line-height: 1;
   cursor: pointer;
 }
 .row-toggle::before {
   content: "";
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.42rem;
+  height: 0.42rem;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(-45deg) translate(-1px, -1px);
   transition: transform 0.15s ease;
 }
 .row-toggle[aria-expanded=true]::before { transform: rotate(45deg) translate(-1px, -1px); }
-.row-toggle:hover { color: var(--text); }
+.row-toggle:hover { border-color: var(--muted); color: var(--text); }
 /* The opened facts sit under the row, slightly inset so the row stays one unit. */
 .detail-row > td { background: var(--bg); padding: 0.6rem 0.6rem 0.8rem; }
 .detail-row .facts { margin: 0; }
@@ -589,31 +590,39 @@ summary { list-style: none; }
 summary::-webkit-details-marker { display: none; }
 summary::marker { content: ""; }
 .item-grid, .event-grid, .event-head { position: relative; }
-.item-grid::before, .event-grid::before, .event-head::before {
-  content: "";
+/* The toggle: the same circled chevron on every row, absolutely positioned so
+   it never becomes a grid track of its own. */
+.summary-toggle {
   position: absolute;
-  left: 0.1rem;
-  top: 0.42em;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  /* Closed: points at the row (right). Open: points into the content (down),
-     so the arrow never reads as upside down. */
+  left: 0;
+  top: 0.3em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  pointer-events: none;
+}
+.summary-toggle::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
   transform: rotate(-45deg);
   transition: transform 0.15s ease;
 }
-details[open] > .item-grid::before,
-details[open] > .event-grid::before,
-details[open] > .event-head::before {
-  transform: rotate(45deg);
-  top: 0.6em;
-}
-/* The chevron needs room before the first value; header cells take the same
-   inset so the labels stay exactly above the fields. */
-.item-grid > :first-child, .item-columns > span:first-child,
-.event-grid > :first-child, .event-columns > span:first-child { padding-left: 1.05rem; }
-.event-head { padding-left: 1.05rem; }
+details[open] > summary .summary-toggle::before { transform: rotate(45deg); }
+/* The circle needs room before the first value, with a gap rather than
+   touching the path; header cells take the same inset so labels stay above
+   their fields. */
+.item-grid > .item-name, .item-columns > span:first-child,
+.event-grid > .event-time, .event-columns > span:first-child { padding-left: 1.9rem; }
+.event-head { padding-left: 1.9rem; }
 .event-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; }
 .event-time { color: var(--muted); font-size: var(--text-small); white-space: nowrap; }
 .event-actor { font-weight: 500; }
