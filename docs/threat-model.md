@@ -43,9 +43,12 @@ boundaries, protections, and accepted risks of that design.
    Header authentication depends on the gateway stripping and setting identity
    headers, and on the NetworkPolicy preventing direct access. Signed-token
    and OIDC authentication verify signatures and reject invalid tokens. An
-   email domain allowlist applies in every mode, and unverified email claims
-   are rejected. The post-deployment check (`scripts/post-deploy-check.sh`)
-   fails if unauthenticated requests or forged headers are accepted. OIDC
+   email domain allowlist applies in every mode. Whether an address is
+   verified is the identity provider's responsibility: platypus trusts the
+   identity the gateway or OIDC provider asserts, so that layer must enforce
+   `email_verified` where the provider offers it. The post-deployment check
+   (`scripts/post-deploy-check.sh`) fails if unauthenticated requests or
+   forged headers are accepted. OIDC
    starts a fresh session at each login to prevent session fixation and
    restricts return addresses to local paths to prevent open redirects.
 2. **Unattended sessions.**
