@@ -84,7 +84,7 @@ td.mono-cell, .mono-cell {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.items-table tr.item-row:last-of-type td { border-bottom: none; }
+.items-table tbody tr:nth-last-child(2) td { border-bottom: none; }
 .items-table .name-cell { width: 100%; }
 .name-line { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .items-table .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

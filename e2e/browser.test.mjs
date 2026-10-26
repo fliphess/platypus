@@ -330,7 +330,7 @@ await step("profile and local times", async () => {
   await page.waitForSelector(".user a:has-text('Ada Admin')");
   // Times now follow the browser's zone, not UTC.
   await page.goto(base + "/admin/audit");
-  await page.waitForSelector("#audit-results .event-time");
+  await page.waitForSelector("#audit-results table.audit-table");
   await assertLocalTimes("#audit-results time[datetime]", "the audit trail");
   // Searching re-renders the fragment server-side: it must come back local.
   await page.fill(".search-bar input[type=search][name=q]", "admin");
@@ -450,28 +450,28 @@ await step("audit trail: filters apply as you change them", async () => {
   await editor.close();
 
   await page.goto(base + "/admin/audit");
-  await page.waitForSelector("#audit-results .event");
+  await page.waitForSelector("#audit-results table.audit-table");
   // Selecting an outcome in the browser swaps the results in place.
-  const events = page.locator("#audit-results .event");
+  const events = page.locator("#audit-results .event-row");
   if ((await events.count()) === 0) throw new Error("the audit trail shows no events at all");
   await page.selectOption("#outcome", "allowed");
   await page.waitForSelector("#audit-results .badge.ok");
   await page.selectOption("#outcome", "denied");
   await page.waitForFunction(() => {
-    const events = document.querySelectorAll("#audit-results .event");
-    return events.length > 0 && [...events].every((e) => e.textContent.includes("denied"));
+    const rows = document.querySelectorAll("#audit-results .event-row");
+    return rows.length > 0 && [...rows].every((row) => row.textContent.includes("denied"));
   }, undefined, { timeout: 5000 }).catch(() => {
     throw new Error("the denied filter shows nothing");
   });
-  // Clicking an event line opens the full record; from there its user
-  // filters the trail.
-  await page.click("#audit-results .event > summary");
-  await page.waitForSelector("#audit-results .event[open] .event-body dl");
-  await page.click("#audit-results .event[open] a[href*='actor=']");
+  // The row's toggle opens the full record; from there its user filters the
+  // trail.
+  await page.click("#audit-results .row-toggle");
+  await page.waitForSelector("#audit-results .detail-row:not([hidden]) dl");
+  await page.click("#audit-results .detail-row:not([hidden]) a[href*='actor=']");
   await page.waitForSelector("#actor");
   // And the filters can be cleared again.
   await page.click("a:has-text('Clear filters')");
-  await page.waitForSelector("#audit-results .event");
+  await page.waitForSelector("#audit-results .event-row");
   await shot(page, "10b-audit");
 });
 
@@ -497,59 +497,58 @@ await step("block switch dialog", async () => {
 });
 
 await step("layout invariants hold", async () => {
-  // The audit date is one line, whatever the width.
+  // The audit trail is a table: aligned columns, a circled toggle, an action
+  // column that never clips, and an opened record that stays in its card.
   await page.goto(base + "/admin/audit");
-  await page.waitForSelector("#audit-results .event");
-  // The audit header sits exactly above its fields, and long actions are
-  // never clipped.
-  const auditAligned = await page.evaluate(() => {
-    const header = Array.from(document.querySelectorAll("#audit-results .event-columns span"));
-    const row = document.querySelector("#audit-results .event-grid");
-    const cells = Array.from(row.children).filter((el) => !el.classList.contains("summary-toggle"));
-    return header.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2);
+  await page.waitForSelector("#audit-results table.audit-table");
+  const auditTable = await page.evaluate(() => {
+    const table = document.querySelector("#audit-results table.audit-table");
+    const headers = Array.from(table.querySelectorAll("thead th"));
+    const cells = Array.from(table.querySelectorAll("tbody tr.event-row:first-of-type > td"));
+    return {
+      headers: headers.length,
+      cells: cells.length,
+      aligned: headers.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2),
+      offsets: headers.map((h, i) => [Math.round(h.getBoundingClientRect().x), cells[i] ? Math.round(cells[i].getBoundingClientRect().x) : null]),
+    };
   });
-  if (!auditAligned) throw new Error("audit header and fields are not aligned");
+  if (auditTable.headers !== 5 || auditTable.cells !== 5) {
+    throw new Error(`the audit table has ${auditTable.headers} headers for ${auditTable.cells} fields`);
+  }
+  if (!auditTable.aligned) throw new Error(`the audit columns misalign: ${JSON.stringify(auditTable.offsets)}`);
   const auditChevron = await page.evaluate(() => {
-    const toggle = document.querySelector("#audit-results .event-grid .summary-toggle");
+    const toggle = document.querySelector("#audit-results .row-toggle");
     const before = getComputedStyle(toggle, "::before");
-    return { size: Math.round(toggle.getBoundingClientRect().width), radius: getComputedStyle(toggle).borderRadius,
-             width: parseFloat(before.width), border: before.borderRightWidth };
+    return { size: Math.round(toggle.getBoundingClientRect().width), radius: getComputedStyle(toggle).borderRadius, border: before.borderRightWidth };
   });
   if (auditChevron.size < 20 || auditChevron.radius !== "50%" || auditChevron.border !== "2px") {
     throw new Error(`the audit disclosure is not a circled chevron: ${JSON.stringify(auditChevron)}`);
   }
-  const outcomeAligned = await page.evaluate(() => {
-    const textLeft = (el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return range.getBoundingClientRect().left;
-    };
-    const header = Array.from(document.querySelectorAll("#audit-results .event-columns span")).at(-1);
-    const badge = document.querySelector("#audit-results .event-grid .badge");
-    return { drift: Math.abs(textLeft(header) - textLeft(badge)) };
-  });
-  if (outcomeAligned.drift >= 2) throw new Error(`the Outcome label sits ${outcomeAligned.drift}px off its badge`);
   const actionFits = await page.evaluate(() => {
-    const cell = document.querySelector("#audit-results .event-grid .event-action");
+    const cell = document.querySelector("#audit-results .action-cell");
     return cell.scrollWidth <= cell.clientWidth + 1;
   });
   if (!actionFits) throw new Error("the audit action column clips");
-  await page.click("#audit-results .event > summary");
+  await page.click("#audit-results .row-toggle");
   const audit = await page.evaluate(() => {
     const results = document.querySelector("#audit-results");
     const card = results.querySelector(".card");
-    const body = results.querySelector(".event-body");
-    const json = results.querySelector(".event-json");
+    const detail = results.querySelector(".detail-row:not([hidden])");
+    const json = detail?.querySelector(".event-json");
     const rect = (el) => (el ? { x: Math.round(el.getBoundingClientRect().x), w: Math.round(el.getBoundingClientRect().width) } : null);
     return {
       pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       resultsOverflow: results.scrollWidth - results.clientWidth,
-      card: rect(card), body: rect(body), json: rect(json),
       cardScroll: card ? card.scrollWidth - card.clientWidth : null,
+      detail: rect(detail), json: rect(json),
+      hasFilter: Boolean(detail?.querySelector("a[href*='actor=']")),
     };
   });
   if (audit.pageOverflow > 0 || audit.resultsOverflow > 0 || (audit.cardScroll ?? 0) > 0) {
     throw new Error(`audit overflows: ${JSON.stringify(audit)}`);
+  }
+  if (!audit.detail || !audit.hasFilter) {
+    throw new Error(`the audit record did not open: ${JSON.stringify(audit)}`);
   }
 
   // Column headers sit exactly above their cells.
@@ -867,7 +866,7 @@ await step("documentation screenshots", async () => {
   await shoot("09-policies", "/admin/policies", "#policy-list a.cell-name");
   await shoot("10-policy-editor", policyHref, ".rule-row");
 
-  await shoot("11-audit", "/admin/audit", "#audit-results .event-grid");
+  await shoot("11-audit", "/admin/audit", "#audit-results table.audit-table");
   await shoot("12-docs", "/docs", ".docs article");
 });
 

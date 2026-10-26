@@ -59,38 +59,43 @@
 <div id="audit-results">
   <div class="card">
     {{- if .Events}}
-    <div class="event-columns" aria-hidden="true">
-      <span>When</span><span>Who</span><span>Action</span><span>Resource</span><span>Outcome</span>
-    </div>
-    <ul class="events">
-      {{- range .Events}}
-      <li>
-        <details class="event">
-          <summary class="event-grid">
-            <span class="summary-toggle" aria-hidden="true"></span>
-            <span class="event-time">{{time .OccurredAt}}</span>
-            <span class="event-actor" title="{{.ActorEmail}}">{{.ActorEmail}}</span>
-            <span class="event-action mono">{{.Action}}</span>
-            <span class="event-item mono" title="{{with .ResourceName}}{{.}}{{else}}not about one item{{end}}">{{with .ResourceName}}{{.}}{{else}}<span class="muted">—</span>{{end}}</span>
-            <span class="event-outcome">{{if eq .Outcome "allowed"}}<span class="badge ok">allowed</span>{{else if eq .Outcome "denied"}}<span class="badge warn">denied</span>{{else}}<span class="badge danger">{{.Outcome}}</span>{{end}}</span>
-          </summary>
-          <div class="event-body">
+    <table class="audit-table">
+      <thead>
+        <tr><th>When</th><th>Who</th><th>Action</th><th>Resource</th><th>Outcome</th></tr>
+      </thead>
+      <tbody>
+        {{- range $i, $event := .Events}}
+        <tr class="event-row">
+          <td class="when-cell">
+            <div class="when-line">
+              <button type="button" class="row-toggle" data-row-toggle aria-expanded="false"
+                      aria-controls="event-detail-{{$i}}" aria-label="Show details of this event"></button>
+              <time>{{time $event.OccurredAt}}</time>
+            </div>
+          </td>
+          <td class="actor-cell" title="{{$event.ActorEmail}}">{{$event.ActorEmail}}</td>
+          <td class="action-cell mono">{{$event.Action}}</td>
+          <td class="resource-cell mono" title="{{with $event.ResourceName}}{{.}}{{else}}not about one item{{end}}">{{with $event.ResourceName}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+          <td class="outcome-cell">{{if eq $event.Outcome "allowed"}}<span class="badge ok">allowed</span>{{else if eq $event.Outcome "denied"}}<span class="badge warn">denied</span>{{else}}<span class="badge danger">{{$event.Outcome}}</span>{{end}}</td>
+        </tr>
+        <tr class="detail-row" id="event-detail-{{$i}}" hidden>
+          <td colspan="5">
             <dl class="facts">
-              <dt>When</dt><dd>{{time .OccurredAt}}</dd>
-              <dt>Who</dt><dd>{{.ActorEmail}} · <a href="/admin/audit?actor={{.ActorEmail}}">filter by this user</a></dd>
-              <dt>From</dt><dd class="mono">{{with .ClientIP}}{{.}}{{else}}unknown{{end}}</dd>
-              <dt>Action</dt><dd class="mono">{{.Action}}</dd>
-              <dt>Outcome</dt><dd>{{.Outcome}}{{with .Reason}} — {{.}}{{end}}</dd>
-              <dt>Resource</dt><dd class="mono">{{with .ResourceName}}{{.}}{{else}}not about one item{{end}}</dd>
-              {{- if ne (string .Details) "{}"}}
-              <dt>Details</dt><dd><pre class="mono event-json">{{string .Details}}</pre></dd>
+              <dt>When</dt><dd>{{time $event.OccurredAt}}</dd>
+              <dt>Who</dt><dd>{{$event.ActorEmail}} · <a href="/admin/audit?actor={{$event.ActorEmail}}">filter by this user</a></dd>
+              <dt>From</dt><dd class="mono">{{with $event.ClientIP}}{{.}}{{else}}unknown{{end}}</dd>
+              <dt>Action</dt><dd class="mono">{{$event.Action}}</dd>
+              <dt>Outcome</dt><dd>{{$event.Outcome}}{{with $event.Reason}} — {{.}}{{end}}</dd>
+              <dt>Resource</dt><dd class="mono">{{with $event.ResourceName}}{{.}}{{else}}not about one item{{end}}</dd>
+              {{- if ne (string $event.Details) "{}"}}
+              <dt>Details</dt><dd><pre class="mono event-json">{{string $event.Details}}</pre></dd>
               {{- end}}
             </dl>
-          </div>
-        </details>
-      </li>
-      {{- end}}
-    </ul>
+          </td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
     {{- else}}
     <p class="muted">No events match.</p>
     {{- end}}

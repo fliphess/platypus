@@ -709,7 +709,7 @@ func TestAuditTrailFilters(t *testing.T) {
 
 	// The htmx request returns just the results, so filters swap in place.
 	results := h.do(http.MethodGet, "/admin/audit?outcome=denied", admin, nil, true)
-	if results.status != http.StatusOK || !strings.Contains(results.body, `class="event"`) {
+	if results.status != http.StatusOK || !strings.Contains(results.body, `class="event-row"`) {
 		t.Errorf("fragment response: %d %.200s", results.status, results.body)
 	}
 	if strings.Contains(results.body, "<html") {

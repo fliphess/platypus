@@ -354,7 +354,7 @@ td.mono-cell, .mono-cell {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.items-table tr.item-row:last-of-type td { border-bottom: none; }
+.items-table tbody tr:nth-last-child(2) td { border-bottom: none; }
 .items-table .name-cell { width: 100%; }
 .name-line { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .items-table .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -525,7 +525,7 @@ td.mono-cell, .mono-cell {
 summary { list-style: none; }
 summary::-webkit-details-marker { display: none; }
 summary::marker { content: ""; }
-.item-grid, .event-grid, .event-head { position: relative; }
+.event-head { position: relative; }
 /* The toggle: the same circled chevron on every row, absolutely positioned so
    it never becomes a grid track of its own. */
 .summary-toggle {
@@ -556,50 +556,45 @@ details[open] > summary .summary-toggle::before { transform: rotate(45deg); }
 /* The circle needs room before the first value, with a gap rather than
    touching the path; header cells take the same inset so labels stay above
    their fields. */
-.item-grid > .item-name, .item-columns > span:first-child,
-.event-grid > .event-time, .event-columns > span:first-child { padding-left: 1.9rem; }
 .event-head { padding-left: 1.9rem; }
 .event-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; }
-.event-time { color: var(--muted); font-size: var(--text-small); white-space: nowrap; }
-.event-actor { font-weight: 500; }
-.event-action { color: var(--muted); font-size: 0.88rem; }
-.event-item { font-size: 0.88rem; word-break: break-all; }
-.event-outcome { margin-left: auto; }
-/* The audit trail: one grid for the header and every summary line, so labels
-   sit exactly above their values. The action column sizes to its content (no
-   mid-word breaks); the item clips with a tooltip and is shown in full in the
-   dropdown. */
-.event-columns, .event-grid {
-  display: grid;
-  grid-template-columns: 10rem 12rem 15rem minmax(0, 1fr) 5.5rem;
-  gap: 0.25rem 0.9rem;
-  align-items: baseline;
-}
-.event-columns {
-  padding-bottom: 0.4rem;
+/* The audit trail: a real table like the other lists. The action column sizes
+   to its content; the actor and resource clip with a tooltip. */
+.audit-table { width: 100%; border-collapse: collapse; }
+.audit-table th {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: var(--text-small);
+  font-size: 0.85rem;
   font-weight: 600;
-}
-.event-grid > * { min-width: 0; }
-/* The Outcome label sits above the badge's word, not its pill edge. */
-.event-columns span:last-child { padding-inline-start: 0.5rem; }
-.event-grid .event-action { white-space: nowrap; }
-.event-grid .event-actor, .event-grid .event-item {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.event-grid .event-outcome { margin-left: 0; }
+.audit-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.audit-table tbody tr:nth-last-child(2) td { border-bottom: none; }
+.when-line { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+.audit-table .actor-cell { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-table .action-cell { white-space: nowrap; }
+.audit-table .resource-cell { max-width: 24rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-table .outcome-cell { white-space: nowrap; width: 6.5rem; }
+.audit-table .detail-row > td { background: var(--bg); padding: 0.6rem 0.8rem 0.8rem; }
+.audit-table .detail-row .facts { margin: 0; }
 @media (max-width: 60rem) {
-  .event-columns { display: none; }
-  .event-grid { grid-template-columns: 1fr; gap: 0.15rem; }
-  .event-grid .event-action, .event-grid .event-item, .event-grid .event-actor { white-space: normal; overflow: visible; text-overflow: clip; }
+  .audit-table thead { display: none; }
+  .audit-table, .audit-table tbody, .audit-table tr, .audit-table td { display: block; }
+  .audit-table td { border: none; padding: 0.1rem 0; }
+  .audit-table tr.event-row { border-bottom: 1px solid var(--border); padding: 0.5rem 0; }
+  .audit-table .actor-cell, .audit-table .resource-cell {
+    max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .audit-table .detail-row > td { padding: 0.6rem 0; }
 }
-.event-body { margin: 0.6rem 0 0 1.2rem; }
-.event-body dt { margin-top: 0.35rem; }
-.event-body dd { margin: 0.1rem 0 0; word-break: break-word; }
 .event-json {
   margin: 0;
   padding: 0.6rem;
