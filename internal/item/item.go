@@ -111,12 +111,14 @@ type Tag struct {
 	Value string
 }
 
-// HasAnyTag reports whether tags contain one of wanted. Keys must match
-// exactly; values match without regard to case ("true" and "True").
+// HasAnyTag reports whether tags contain one of wanted. Keys and values match
+// without regard to case ("Terraform" and "terraform", "true" and "TRUE").
 func HasAnyTag(tags map[string]string, wanted []Tag) bool {
 	for _, w := range wanted {
-		if value, ok := tags[w.Key]; ok && strings.EqualFold(value, w.Value) {
-			return true
+		for key, value := range tags {
+			if strings.EqualFold(key, w.Key) && strings.EqualFold(value, w.Value) {
+				return true
+			}
 		}
 	}
 	return false

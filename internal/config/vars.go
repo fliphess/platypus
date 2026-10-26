@@ -238,8 +238,8 @@ var (
 		Name:    "PLATYPUS_TERRAFORM_TAGS",
 		Default: "Terraform=true",
 		Description: "Comma-separated key=value tags that mark a parameter or secret as managed by Terraform. " +
-			"Platypus shows those as such and refuses to change their value or description; the case of the " +
-			"value doesn't matter.",
+			"Platypus shows those as such and refuses to change their value or description. Keys and values " +
+			"match without regard to case.",
 	}
 	varRevealsPerMinute = Var{
 		Name:        "PLATYPUS_REVEALS_PER_MINUTE",

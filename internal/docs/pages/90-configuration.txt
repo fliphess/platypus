@@ -45,7 +45,7 @@ PLATYPUS_SESSION_MAX_AGE | 12h | A platypus session ends this long after it star
 PLATYPUS_REVEAL_HIDE_AFTER | 10s | A revealed value is hidden again in the browser after this long.
 PLATYPUS_REVEALS_PER_MINUTE | 30 | Maximum number of reveals per user per minute.
 PLATYPUS_PASSKEYS_ENABLED | true | Offer passkeys for admin mode. Passkeys need a browser that accepts the domain of PLATYPUS_PUBLIC_URL; switch them off where it doesn't, such as local development.
-PLATYPUS_TERRAFORM_TAGS | Terraform=true | Comma-separated key=value tags that mark a parameter or secret as managed by Terraform. Platypus shows those as such and refuses to change their value or description; the case of the value doesn't matter.
+PLATYPUS_TERRAFORM_TAGS | Terraform=true | Comma-separated key=value tags that mark a parameter or secret as managed by Terraform. Platypus shows those as such and refuses to change their value or description. Keys and values match without regard to case.
 PLATYPUS_SYNC_INTERVAL | 5m | How often the worker refreshes the list of parameters and secrets from AWS.
 PLATYPUS_SYNC_TIMEOUT | 1h | How long one sync may take before the worker gives up on it. When the worker hasn't finished a round of work for longer than this, its liveness check fails and Kubernetes restarts it.
 PLATYPUS_ACCESS_RECHECK_INTERVAL | 24h | How often the worker re-checks whether platypus itself can access every parameter and secret. Items platypus can't access are hidden.

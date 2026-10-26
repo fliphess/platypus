@@ -56,3 +56,28 @@ func TestMaxValueBytes(t *testing.T) {
 		t.Error("MaxValueBytes doesn't match the AWS limits")
 	}
 }
+
+// Tag matching is forgiving about case, so a hand-written tag still protects
+// an item Terraform manages.
+func TestHasAnyTag(t *testing.T) {
+	wanted := []Tag{{Key: "Terraform", Value: "true"}}
+	for name, tags := range map[string]map[string]string{
+		"exact":         {"Terraform": "true"},
+		"key and value": {"terraform": "TRUE"},
+		"value only":    {"Terraform": "True"},
+		"key only":      {"TERRAFORM": "true"},
+	} {
+		if !HasAnyTag(tags, wanted) {
+			t.Errorf("%s: %v does not match %v", name, tags, wanted)
+		}
+	}
+	for name, tags := range map[string]map[string]string{
+		"other value": {"Terraform": "false"},
+		"other key":   {"ManagedBy": "Terraform"},
+		"empty":       {},
+	} {
+		if HasAnyTag(tags, wanted) {
+			t.Errorf("%s: %v unexpectedly matches %v", name, tags, wanted)
+		}
+	}
+}

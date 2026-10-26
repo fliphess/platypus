@@ -116,7 +116,14 @@ so the gateway must prevent clients from supplying it directly.
 
    Narrow `Resource` if Platypus should only manage part of the account. Items Platypus cannot access are
    hidden in the UI.
-2. If running live AWS tests in CI, use a separate role limited to test parameters.
+2. Tag everything Terraform manages with `Terraform=true` and leave `ssm:ListTagsForResource` in the policy.
+   Platypus refuses to change the value or description of tagged items, so a change made in the UI cannot be
+   silently undone by the next `terraform apply`. `PLATYPUS_TERRAFORM_TAGS` lists the tags that count;
+   keys and values match without regard to case, so `terraform=TRUE` counts too.
+   Secret tags come with every sync. SSM tags are read on first use and cached, and a parameter AWS does not
+   let Platypus tag-read looks untagged: it stays editable and Terraform would undo a change made there.
+   Keeping `ssm:ListTagsForResource` and tagging consistently is what makes the guard work.
+3. If running live AWS tests in CI, use a separate role limited to test parameters.
 
 ## Database
 
