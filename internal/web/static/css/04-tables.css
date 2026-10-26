@@ -1,0 +1,158 @@
+/* Cards, tables and lists */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+/*
+ * The table spec: every table in platypus follows this. Column types carry
+ * their own rules so long content can never stretch or wrap a layout:
+ *  - identifiers (.mono-cell / .name): monospaced, one line, ellipsis with
+ *    the full text in a tooltip, a generous maximum width.
+ *  - moments (.when): one line, never wrapped ("2026-10-25 18:22 UTC").
+ *  - state (.state-cell): badges on one line.
+ *  - actions (.row-actions): right-aligned on the row's middle.
+ *  - descriptions: one line, ellipsis, tooltip.
+ * Headers align with cells because they share the column types.
+ */
+th, td {
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th { color: var(--muted); font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+
+td.when, .when { white-space: nowrap; color: var(--muted); font-size: 0.85rem; }
+td.mono-cell, .mono-cell {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 44ch;
+}
+.item-list .name {
+  display: inline-block;
+  max-width: 62ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.item-list .state-cell { white-space: nowrap; }
+.item-list .state-cell .badge + .badge { margin-left: 0.25rem; }
+.item-list .description, td.description {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.unnamed { color: var(--muted); font-style: italic; }
+:root {
+  --button-pad-x: 0.55rem;
+  --item-facts: 8rem 7.5rem 4rem 9.5rem;
+}
+/* Helper text sits BELOW the field it explains. */
+.field-hint { color: var(--muted); font-size: var(--text-small); margin: 0.3rem 0 0; }
+.type-cell { white-space: nowrap; }
+/* Item lists: a real aligned grid — Name, Type, State, Note, Changed and a
+   way in. The header, the row and the row's action share the tracks, so the
+   labels sit exactly above the fields. Long names clip with a tooltip;
+   nothing reflows the columns. */
+.item-columns, .item-row {
+  display: grid;
+  /* The name is the field people actually scan: it gets the space. */
+  grid-template-columns: minmax(0, 1fr) var(--item-facts) 8rem;
+  gap: 0.25rem 0.35rem;
+  align-items: baseline;
+}
+/* The disclosure owns the first five columns; the action is its sibling in
+   the sixth. An <a> inside <summary> is invalid and unreliable, so it can
+   never go back in there. The summary repeats the same five tracks: with the
+   same gaps the 1fr resolves identically, so the columns line up. */
+.item-row > details { grid-column: 1 / 6; min-width: 0; }
+.item-row > .row-edit { grid-column: 6; }
+.item-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--item-facts);
+  gap: 0.25rem 0.35rem;
+  align-items: baseline;
+}
+.item-columns {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.item-grid > * { min-width: 0; }
+/* The expanded row shows the whole path, wrapping rather than clipping. */
+.path-value { word-break: normal; overflow-wrap: anywhere; }
+/* A note reads in full in the expanded row: it may be the reason not to edit. */
+.note-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; }
+/* Long paths are the norm: two lines, broken anywhere, before any ellipsis.
+   The full path is in the dropdown and in the tooltip regardless. */
+.item-grid .item-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  /* Breaks come from the <wbr> after each slash; a segment longer than the
+     line still has to break somewhere. */
+  word-break: normal;
+}
+.item-grid .state-cell, .item-grid .note-cell, .item-grid .type-cell { white-space: nowrap; }
+.item-row > .row-edit, .item-columns .head-edit { text-align: right; }
+.item-row > .row-edit { display: flex; justify-content: flex-end; align-items: baseline; gap: 0.35rem; }
+/* The Edit label sits above the button's WORD, not above its box: mirror the
+   button's right padding and 1px border, or the two words drift ~10px. */
+.item-columns .head-edit { padding-inline-end: calc(var(--button-pad-x) + 1px); }
+/* The row's Edit action: compact, and quiet when it cannot apply. */
+.button.small, .item-row .row-edit .button {
+  padding: 0.1rem var(--button-pad-x);
+  font-size: var(--text-small);
+}
+.item-row .row-edit [aria-disabled=true] { opacity: 0.45; cursor: not-allowed; }
+/* The dropdown's action row only exists where the row action is hidden. */
+.only-narrow { display: none; }
+@media (max-width: 60rem) {
+  .item-columns { display: none; }
+  /* The row's action moves into the dropdown: no trailing button, and no
+     interactive element has to sit inside the summary. */
+  .item-row { display: block; }
+  .item-row > details { grid-column: auto; }
+  .item-row > .row-edit { display: none; }
+  .only-narrow { display: revert; }
+  .item-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.8rem;
+  }
+  /* The name gets its own line and wraps; the facts follow together and the
+     action stays at the end — nothing disappears, and no empty gulf. */
+  .item-grid .item-name {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow: visible;
+    word-break: break-all;
+  }
+}
+/* Secondary line inside a cell: its own line, clipped with a tooltip. */
+.cell-sub { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Actions inside a description list row: one aligned line. */
+.cell-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.3rem; }
+.nowrap { white-space: nowrap; }

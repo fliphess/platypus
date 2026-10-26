@@ -1,0 +1,246 @@
+/* The audit trail is a log of dropout rows: the summary line wraps freely
+   (nothing clipped), and clicking it opens the complete record — every
+   field in full, JSON wrapping instead of scrolling. */
+.events { list-style: none; margin: 0; padding: 0; }
+.event { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+.events li:last-child .event { border-bottom: none; }
+.event > summary { cursor: pointer; }
+
+/* One disclosure affordance everywhere: a chevron drawn at a readable size,
+   never the browser's native marker (which reads as a dot at normal zoom). */
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::marker { content: ""; }
+.item-grid, .event-grid, .event-head { position: relative; }
+/* The toggle: the same circled chevron on every row, absolutely positioned so
+   it never becomes a grid track of its own. */
+.summary-toggle {
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  pointer-events: none;
+}
+.summary-toggle::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+details[open] > summary .summary-toggle::before { transform: rotate(45deg); }
+/* The circle needs room before the first value, with a gap rather than
+   touching the path; header cells take the same inset so labels stay above
+   their fields. */
+.item-grid > .item-name, .item-columns > span:first-child,
+.event-grid > .event-time, .event-columns > span:first-child { padding-left: 1.9rem; }
+.event-head { padding-left: 1.9rem; }
+.event-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; }
+.event-time { color: var(--muted); font-size: var(--text-small); white-space: nowrap; }
+.event-actor { font-weight: 500; }
+.event-action { color: var(--muted); font-size: 0.88rem; }
+.event-item { font-size: 0.88rem; word-break: break-all; }
+.event-outcome { margin-left: auto; }
+/* The audit trail: one grid for the header and every summary line, so labels
+   sit exactly above their values. The action column sizes to its content (no
+   mid-word breaks); the item clips with a tooltip and is shown in full in the
+   dropdown. */
+.event-columns, .event-grid {
+  display: grid;
+  grid-template-columns: 10rem 12rem 15rem minmax(0, 1fr) 5.5rem;
+  gap: 0.25rem 0.9rem;
+  align-items: baseline;
+}
+.event-columns {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.event-grid > * { min-width: 0; }
+/* The Outcome label sits above the badge's word, not its pill edge. */
+.event-columns span:last-child { padding-inline-start: 0.5rem; }
+.event-grid .event-action { white-space: nowrap; }
+.event-grid .event-actor, .event-grid .event-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-grid .event-outcome { margin-left: 0; }
+@media (max-width: 60rem) {
+  .event-columns { display: none; }
+  .event-grid { grid-template-columns: 1fr; gap: 0.15rem; }
+  .event-grid .event-action, .event-grid .event-item, .event-grid .event-actor { white-space: normal; overflow: visible; text-overflow: clip; }
+}
+.event-body { margin: 0.6rem 0 0 1.2rem; }
+.event-body dt { margin-top: 0.35rem; }
+.event-body dd { margin: 0.1rem 0 0; word-break: break-word; }
+.event-json {
+  margin: 0;
+  padding: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Screen-reader-only labels: a column header that is only icons or actions. */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* A button that acts on one row (Disable, Remove, ...) is compact and sits
+   on the text line, so it belongs to the row instead of stretching it. */
+td button {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.82rem;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+/* The rollback dialog shows the value it is about to restore. */
+.rollback-value {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem;
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Version rows: actions on the line, right-aligned, with the revealed value
+   appearing under them. */
+.row-actions { text-align: right; vertical-align: middle; }
+.row-actions .actions { justify-content: flex-end; margin: 0; display: inline-flex; gap: 0.4rem; }
+.row-actions .actions form { display: inline-flex; }
+
+
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+/* A wide table scrolls inside its card; it never widens the page. */
+
+.steps { padding-left: 2.25rem; }
+.steps li { padding: 0.2rem 0; color: var(--muted); }
+.steps li[aria-current=step] { color: var(--text); font-weight: 700; }
+
+dl.facts {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+}
+
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; word-break: break-all; }
+
+.listing { list-style: none; margin: 0; padding: 0; }
+
+.listing li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.listing li:last-child { border-bottom: none; }
+.listing .icon { width: 1.25rem; color: var(--muted); flex: none; }
+.listing .name { font-family: var(--mono); word-break: break-all; }
+.listing .description { color: var(--muted); font-size: 0.88rem; }
+
+/* A breadcrumb is a small way back, not a title. */
+.breadcrumbs { margin-bottom: 0.5rem; font-size: var(--text-small); }
+.breadcrumbs a { color: var(--muted); text-decoration: none; }
+.breadcrumbs a:hover { color: var(--accent); }
+
+/* Item lists: the shared table spec (top of the tables section) carries the
+   column rules; only the list-specific bits live here. */
+
+/* One row: where you are and the steps on the left, the page size on the
+   right. Buttons and select share a height, so they read as one control. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  /* The pager is its own row: separated from the last table row, never
+     sitting on top of it, in every list. */
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.pager-start { display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.page-size { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; }
+/* "Per page" sits beside the select, not above it: the whole control is one
+   line as tall as the step buttons. */
+.page-size label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.page-steps { display: inline-flex; gap: 0.25rem; }
+.page-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  line-height: 1;
+}
+.page-size select { height: 2.1rem; padding: 0 0.5rem; }
+/* Numbered pages: the familiar shape, same height as the step buttons. */
+.page-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.page-num:hover { border-color: var(--muted); }
+.page-num.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.page-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 2.1rem;
+  color: var(--muted);
+}
+.page-step[aria-disabled=true] { opacity: 0.4; cursor: default; }

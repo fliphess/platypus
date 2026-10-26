@@ -39,6 +39,11 @@ Platypus loads all three from disk at startup; `PLATYPUS_DOCS_DIR`,
   the previous release: web pods of both versions run during a rollout.
 - Configuration is environment variables only, declared in
   `internal/config/vars.go`.
+- Styles are assembled: edit `internal/web/static/css/*.css` (one concern per
+  file) and run `make css`. `style.css` is generated; `make css-check` fails
+  when it is stale.
+- `make verify` is the gate: generated code, vendored files, tests, sqlfluff,
+  the stylesheet check and the browser suite.
 - Tests: `make test-deps && make test`. Database tests get a fresh database
   each (`dbtest.New`); AWS tests run against ministack.
 

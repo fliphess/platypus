@@ -1,0 +1,102 @@
+/* Messages */
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+  border: 1px solid transparent;
+}
+
+.alert.error { background: var(--danger-soft); color: var(--danger); }
+.alert.warning { background: var(--warning-soft); color: var(--warning); }
+.alert.success { background: var(--success-soft); color: var(--success); }
+.alert.info { background: var(--accent-soft); color: var(--accent); }
+.alert.terraform { background: var(--terraform-soft); color: var(--text); border-color: var(--terraform); }
+.alert.note { background: var(--warning-soft); color: var(--text); border-color: var(--warning); white-space: pre-line; }
+.alert p:first-child { margin-top: 0; }
+.alert p:last-child { margin-bottom: 0; }
+
+/* Revealed values */
+
+.value-box {
+  position: relative;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.value-box pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+.value-hidden { color: var(--muted); letter-spacing: 0.2em; }
+
+/* Confirmation dialog */
+
+dialog {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 40rem;
+  width: calc(100% - 2rem);
+  background: var(--surface);
+  color: var(--text);
+}
+
+dialog::backdrop { background: rgba(10, 14, 20, 0.45); }
+dialog h2 { margin-top: 0; }
+
+/* Recovery codes and QR codes */
+
+.codes { columns: 2; font-family: var(--mono); font-size: 1.05rem; list-style: none; padding: 0; }
+.qr { background: #fff; padding: 0.5rem; border-radius: var(--radius); width: 240px; height: 240px; }
+
+/* Docs */
+
+.docs { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 1.5rem; }
+/* The docs nav is a panel like the admin sections. */
+.docs nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  position: sticky;
+  top: 1rem;
+}
+.docs nav a {
+  padding: 0.4rem 0.7rem;
+  border-radius: calc(var(--radius) - 3px);
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+.docs nav a:hover { background: var(--bg); color: var(--text); }
+.docs nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+/* The docs article uses the same width as the admin views' content, so the
+   page doesn't jump between sections. Line length is bounded by the layout,
+   not by a separate measure. */
+.docs article { max-width: none; margin-bottom: 0; }
+.docs article p { line-height: 1.6; }
+.docs article h2 { margin: 1.7rem 0 0.4rem; font-size: 1.02rem; }
+.docs article ul { margin: 0.5rem 0; padding-left: 1.4rem; }
+.docs article li { margin: 0.3rem 0; line-height: 1.55; }
+
+/* Full-page status messages */
+
+.status-page { max-width: 34rem; margin: 4rem auto; text-align: center; }
+.status-page img { width: 120px; }
+
+@media (max-width: 760px) {
+  .site-header .inner { flex-wrap: wrap; gap: 0.75rem; }
+  .docs, .admin { grid-template-columns: 1fr; }
+  .admin-views, .docs nav { position: static; flex-direction: row; flex-wrap: wrap; }
+  dl.facts { grid-template-columns: 1fr; }
+}
+
+/* First headings in cards sit flush. */
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+
+.steps { padding-left: 2.25rem; }
+.steps li { padding: 0.2rem 0; color: var(--muted); }
+.steps li[aria-current=step] { color: var(--text); font-weight: 700; }

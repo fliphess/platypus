@@ -90,9 +90,24 @@ dev-bootstrap-token: ## Print the bootstrap token of the local stack (test mode 
 smoke: ## Start the compose stack from scratch and check platypus reaches the bootstrap page
 	./scripts/smoke-test.sh
 
+.PHONY: css
+css: ## Rebuild the stylesheet from internal/web/static/css/*.css
+	./scripts/build-css.sh
+
+.PHONY: css-check
+css-check: ## Fail when the stylesheet is not rebuilt from its parts
+	@tmp=$$(mktemp); cat internal/web/static/css/*.css > $$tmp; \
+	if ! cmp -s $$tmp internal/web/static/style.css; then \
+		echo "style.css is stale: run make css" >&2; rm -f $$tmp; exit 1; \
+	fi; rm -f $$tmp
+
 .PHONY: e2e
 e2e: ## Run the browser tests (Playwright in Docker) against a fresh stack
 	./e2e/run.sh
+
+.PHONY: verify
+verify: generate-check vendored-check test sqlfluff css-check e2e ## Everything CI must pass before a change is done
+	golangci-lint run ./...
 
 .PHONY: guards-prove
 guards-prove: ## Reintroduce known bugs and prove the guards catch each one

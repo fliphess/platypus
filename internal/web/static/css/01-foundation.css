@@ -1,0 +1,96 @@
+/* Platypus: one small stylesheet, no framework. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1d2430;
+  --muted: #5d6878;
+  --border: #dde2e9;
+  --accent: #0f766e;
+  --accent-text: #ffffff;
+  --accent-soft: #e3f2f0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --warning: #8a5a00;
+  --warning-soft: #fff4dc;
+  --success: #1a7f37;
+  --success-soft: #e6f4ea;
+  --admin: #6941c6;
+  --admin-soft: #f0ebfc;
+  --terraform: #5c4ee5;
+  --terraform-soft: #ecebfd;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 8px;
+  /* Spacing and type scale: components below use these, so density is one
+     decision instead of fifty. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+  --text-small: 0.85rem;
+  --text-body: 0.95rem;
+  --text-title: 1.25rem;
+}
+
+/* Dark colours: chosen with the theme switch, or from the system setting
+   when the user didn't choose. */
+:root[data-theme=dark] {
+    color-scheme: dark;
+    --bg: #1c2129;
+    --surface: #252b34;
+    --text: #e3e7ed;
+    --muted: #a3adbb;
+    --border: #3a424e;
+    --accent: #3cc0b0;
+    --accent-text: #0b1512;
+    --accent-soft: #1d3a37;
+    --danger: #f97066;
+    --danger-soft: #42221f;
+    --warning: #f5b546;
+    --warning-soft: #3b3018;
+    --success: #4ac26b;
+    --success-soft: #1b3624;
+    --admin: #a48afb;
+    --admin-soft: #2e2747;
+    --terraform: #a48afb;
+    --terraform-soft: #2e2747;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+      color-scheme: dark;
+      --bg: #1c2129;
+      --surface: #252b34;
+      --text: #e3e7ed;
+      --muted: #a3adbb;
+      --border: #3a424e;
+      --accent: #3cc0b0;
+      --accent-text: #0b1512;
+      --accent-soft: #1d3a37;
+      --danger: #f97066;
+      --danger-soft: #42221f;
+      --warning: #f5b546;
+      --warning-soft: #3b3018;
+      --success: #4ac26b;
+      --success-soft: #1b3624;
+      --admin: #a48afb;
+      --admin-soft: #2e2747;
+      --terraform: #a48afb;
+      --terraform-soft: #2e2747;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); }
+code, pre, .mono { font-family: var(--mono); font-size: 0.92em; }

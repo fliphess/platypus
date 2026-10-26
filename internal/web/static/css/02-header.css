@@ -1,0 +1,94 @@
+/* Header and navigation */
+
+:root[data-theme=light] { color-scheme: light; }
+
+/* One status line under the header: state, not nagging. */
+.status-strip {
+  padding: 0.45rem 1.25rem;
+  font-size: var(--text-small);
+  border-bottom: 1px solid var(--border);
+}
+.status-strip.warning { background: var(--warning-soft); color: var(--warning); }
+.status-strip.info { background: var(--accent-soft); color: var(--accent); }
+
+/* Transient confirmations: a small toast, bottom right, gone by itself. */
+.toast {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  max-width: 26rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+  z-index: 60;
+  transition: opacity 0.4s ease;
+}
+.toast.toast-out { opacity: 0; }
+
+/* Header user area: a designed group, not a run of links. */
+.user { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
+.user-name { color: var(--text); font-weight: 600; text-decoration: none; }
+.user-name:hover { color: var(--accent); }
+.chip {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--admin-soft);
+  color: var(--admin);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+}
+.chip:hover { filter: brightness(1.05); }
+button.quiet {
+  border: none;
+  background: none;
+  padding: 0.2rem 0.4rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+button.quiet:hover { color: var(--text); }
+
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header .inner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.6rem 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.brand img { width: 52px; height: 33px; }
+
+.tabs { display: flex; gap: 0.25rem; flex: 1; }
+
+.tabs a {
+  white-space: nowrap;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tabs a:hover { background: var(--bg); color: var(--text); }
+.tabs a.active { background: var(--accent-soft); color: var(--accent); }

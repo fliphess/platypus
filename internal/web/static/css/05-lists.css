@@ -1,0 +1,114 @@
+/* The hidden attribute wins over component display rules (e.g. .field). */
+[hidden] { display: none !important; }
+/* Fields revealed by a checkbox sit visually under it. */
+.toggle-link { margin: 0.9rem 0 0; }
+.toggle-field { margin-top: 0.5rem; }
+.cell-name { display: inline-block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.cell-email { max-width: 34ch; }
+/* Audit columns: generous but capped, so long item names and details clip
+   with a tooltip instead of stretching the table. */
+.audit-table .cell-action { max-width: 22ch; }
+.audit-table .cell-item { max-width: 34ch; }
+.audit-table .cell-reason { max-width: 52ch; }
+/* People table: the same table spec as every other table. The person cell
+   carries name over email; nothing is pushed to the far edge, so the columns
+   line up with their headers. */
+.people-table td { vertical-align: middle; }
+.people-table .person-cell { min-width: 12rem; max-width: 26rem; }
+.person-name { display: block; font-weight: 600; text-decoration: none; }
+.person-name:hover { text-decoration: underline; }
+.person-email {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.people-table .unnamed { color: var(--muted); font-style: italic; font-weight: 400; }
+.people-table td.state-cell { white-space: nowrap; }
+/* The pager draws the closing line. Because each person is followed by a
+   (hidden) detail row, the last person's row is the second-to-last tr, so it
+   keeps its own border and the table would show two lines. */
+.people-table tbody tr:nth-last-child(2) td { border-bottom: none; }
+.person-line { display: flex; align-items: center; gap: 0.5rem; }
+.person-ident { min-width: 0; }
+/* The row's disclosure: the same circled chevron as the row summaries. */
+.row-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  line-height: 1;
+  cursor: pointer;
+}
+.row-toggle::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform 0.15s ease;
+}
+.row-toggle[aria-expanded=true]::before { transform: rotate(45deg) translate(-1px, -1px); }
+.row-toggle:hover { border-color: var(--muted); color: var(--text); }
+/* The opened facts sit under the row, slightly inset so the row stays one unit. */
+.detail-row > td { background: var(--bg); padding: 0.6rem 0.6rem 0.8rem; }
+.detail-row .facts { margin: 0; }
+/* The policy editor: one line per attached policy, like the rule editor. */
+.policy-rows { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+.policy-row { display: flex; align-items: center; gap: 0.5rem; }
+.policy-row select { flex: 1; max-width: 34rem; }
+.policy-row .remove-row { flex: none; }
+
+/* Teams: checkbox, policy count, and the team's rules behind a disclosure. */
+.teams-table .team-rules { width: 9rem; }
+/* A quiet text button that opens a row, used where a chevron would crowd. */
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover { text-decoration: underline; }
+.link-button[data-row-toggle]::after {
+  content: "";
+  display: inline-block;
+  margin-left: 0.35rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg) translateY(-1px);
+}
+.link-button[data-row-toggle][aria-expanded=true]::after { transform: rotate(45deg) translateY(1px); }
+/* The rules row spans the table, so twenty rules read as a table rather than
+   squeezing a column. */
+.rules-table th, .rules-table td { padding: 0.35rem 0.6rem; }
+.rules-table th:first-child, .rules-table td:first-child { padding-left: 0; }
+.rules-table { margin-top: 0.45rem; }
+.rules-table th, .rules-table td { padding: 0.3rem 0.5rem; vertical-align: top; }
+.rules-table th { font-size: 0.78rem; }
+.rule-pattern { white-space: nowrap; }
+.rule-perms { color: var(--text); }
+.rule-policy { white-space: nowrap; }
+.teams-table .team-cell { white-space: nowrap; }
+.teams-table .team-cell input { margin-right: 0.35rem; }
+.teams-table .team-rules { color: var(--text); }
+.team-rule { margin: 0.1rem 0; }
+.note-body { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; }
+/* Orphaned notes: the note is the point, so it wraps in full; the item name
+   keeps its own column rather than squeezing the text. */
+.notes-table .note-name { word-break: break-all; }
+.notes-table .note-cell { max-width: 46rem; }
+.notes-table td { vertical-align: top; }

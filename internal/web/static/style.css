@@ -94,7 +94,6 @@ body {
 
 a { color: var(--accent); }
 code, pre, .mono { font-family: var(--mono); font-size: 0.92em; }
-
 /* Header and navigation */
 
 :root[data-theme=light] { color-scheme: light; }
@@ -269,7 +268,6 @@ h1.mono { font-size: 1.35rem; }
 
 .muted { color: var(--muted); }
 .small { font-size: 0.88rem; }
-
 /* Cards, tables and lists */
 
 .card {
@@ -463,8 +461,7 @@ td.mono-cell, .mono-cell {
 .people-table tbody tr:nth-last-child(2) td { border-bottom: none; }
 .person-line { display: flex; align-items: center; gap: 0.5rem; }
 .person-ident { min-width: 0; }
-/* The row's disclosure: a quiet chevron that says whether it is open. */
-/* The same bare chevron as the row summaries: no circle, no background. */
+/* The row's disclosure: the same circled chevron as the row summaries. */
 .row-toggle {
   flex: none;
   display: inline-flex;
@@ -543,7 +540,6 @@ td.mono-cell, .mono-cell {
 .notes-table .note-name { word-break: break-all; }
 .notes-table .note-cell { max-width: 46rem; }
 .notes-table td { vertical-align: top; }
-
 /* The audit trail is a log of dropout rows: the summary line wraps freely
    (nothing clipped), and clicking it opens the complete record — every
    field in full, JSON wrapping instead of scrolling. */
@@ -790,7 +786,6 @@ dl.facts dd { margin: 0; word-break: break-all; }
   color: var(--muted);
 }
 .page-step[aria-disabled=true] { opacity: 0.4; cursor: default; }
-
 /* Front page */
 
 .welcome { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; }
@@ -1045,7 +1040,6 @@ code {
   font-size: 1.1rem;
   line-height: 1;
 }
-
 /* Messages */
 
 .alert {
