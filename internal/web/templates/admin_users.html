@@ -54,8 +54,14 @@
     {{- range .Users}}
     <tr>
       <td class="person-cell">
-        <a class="person-name" href="/admin/users/{{.ID}}">{{with .DisplayName}}{{.}}{{else}}<span class="unnamed">no name yet</span>{{end}}</a>
-        <span class="person-email">{{.Email}}</span>
+        <div class="person-line">
+          <button type="button" class="row-toggle" data-row-toggle aria-expanded="false"
+                  aria-controls="user-detail-{{.ID}}" aria-label="Show details for {{.Email}}"></button>
+          <div class="person-ident">
+            <a class="person-name" href="/admin/users/{{.ID}}">{{with .DisplayName}}{{.}}{{else}}<span class="unnamed">no name yet</span>{{end}}</a>
+            <span class="person-email">{{.Email}}</span>
+          </div>
+        </div>
       </td>
       <td class="state-cell">
         {{- if .DisabledAt}}<span class="badge danger">disabled</span>
@@ -74,6 +80,17 @@
             <button type="submit" class="small{{if not .DisabledAt}} danger{{end}}">{{if .DisabledAt}}Enable{{else}}Disable{{end}}</button>
           </form>
         </span>
+      </td>
+    </tr>
+    <tr class="detail-row" id="user-detail-{{.ID}}" hidden>
+      <td colspan="5">
+        <dl class="facts">
+          <dt>Department</dt><dd>{{with .Department}}{{.}}{{else}}<span class="muted">not given</span>{{end}}</dd>
+          <dt>Policies</dt>
+          <dd>{{range index $data.PoliciesByUser .ID}}<span class="badge">{{.}}</span> {{else}}<span class="muted">none yet</span>{{end}}</dd>
+          <dt>Last seen</dt><dd>{{with .LastSeenAt}}{{time .}}{{else}}<span class="muted">never</span>{{end}}</dd>
+          {{- if .IDPGroups}}<dt>Groups</dt><dd>{{range .IDPGroups}}<span class="badge">{{.}}</span> {{end}}</dd>{{end}}
+        </dl>
       </td>
     </tr>
     {{- end}}

@@ -187,6 +187,24 @@ await step("a group-linked team takes its members from the login", async () => {
   await page.click("button:has-text('Save policies')");
   await page.waitForURL("**" + teamURL + "?notice=saved");
 
+  // The user's Teams card is one table: checkbox, team, and that team's rules.
+  await page.goto(base + "/admin/users/1");
+  const teams = await page.evaluate(() => {
+    const table = document.querySelector(".teams-table");
+    if (!table) return { error: "no teams table" };
+    const heads = Array.from(table.querySelectorAll("thead th"));
+    const cells = Array.from(table.querySelectorAll("tbody tr:first-child td"));
+    return {
+      headers: heads.length,
+      cells: cells.length,
+      checkboxes: table.querySelectorAll("input[type=checkbox][name=team_id]").length,
+      aligned: heads.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2),
+    };
+  });
+  if (teams.error || teams.headers !== 2 || teams.cells !== 2 || teams.checkboxes < 1 || !teams.aligned) {
+    throw new Error(`the teams card is not a checkbox/team/rules table: ${JSON.stringify(teams)}`);
+  }
+
   // The team page says where members come from and offers no manual changes.
   await page.goto(base + teamURL);
   await page.waitForSelector(".alert.info:has-text('Members come from the identity-provider group')");
@@ -583,6 +601,17 @@ await step("layout invariants hold", async () => {
     throw new Error(`the users table has ${people.headerCount} headers for ${people.cellCount} fields`);
   }
   if (!people.aligned) throw new Error(`the users table is not aligned with its header: ${JSON.stringify(people.offsets)}`);
+  const firstToggle = page.locator("#user-list .row-toggle").first();
+  const detailId = await firstToggle.getAttribute("aria-controls");
+  await firstToggle.click();
+  const opened = await page.evaluate((id) => {
+    const row = document.getElementById(id);
+    return { hidden: row.hasAttribute("hidden"), text: row.textContent.replace(/\s+/g, " ") };
+  }, detailId);
+  if (opened.hidden || !opened.text.includes("Department")) {
+    throw new Error(`the user row did not expand: ${JSON.stringify(opened)}`);
+  }
+  await firstToggle.click();
 
   // Lists in the same family share one search control: same shape and width.
   for (const paths of [

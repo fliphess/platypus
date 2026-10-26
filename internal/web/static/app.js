@@ -54,7 +54,17 @@
     if (event.target.closest("[data-dismiss]")) {
       event.preventDefault();
       closeDialog();
+      return;
     }
+    // A list row's details open in place; the control stays outside any
+    // <summary>, so the row survives keyboard and screen-reader use.
+    const toggle = event.target.closest("[data-row-toggle]");
+    if (!toggle) return;
+    const detail = document.getElementById(toggle.getAttribute("aria-controls"));
+    if (!detail) return;
+    const show = detail.hasAttribute("hidden");
+    detail.toggleAttribute("hidden", !show);
+    toggle.setAttribute("aria-expanded", String(show));
   });
 
   // Errors from the "Continue" step are shown in the dialog's message area.

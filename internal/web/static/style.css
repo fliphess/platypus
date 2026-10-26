@@ -454,6 +454,35 @@ td.mono-cell, .mono-cell {
 }
 .people-table .unnamed { color: var(--muted); font-style: italic; font-weight: 400; }
 .people-table td.state-cell { white-space: nowrap; }
+.person-line { display: flex; align-items: center; gap: 0.5rem; }
+.person-ident { min-width: 0; }
+/* The row's disclosure: a quiet chevron that says whether it is open. */
+.row-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  line-height: 1;
+  cursor: pointer;
+}
+.row-toggle::before { content: "\25B8"; font-size: 0.8rem; }
+.row-toggle[aria-expanded=true]::before { content: "\25BE"; }
+.row-toggle:hover { border-color: var(--muted); color: var(--text); }
+/* The opened facts sit under the row, slightly inset so the row stays one unit. */
+.detail-row > td { background: var(--bg); padding: 0.6rem 0.6rem 0.8rem; }
+.detail-row .facts { margin: 0; }
+/* Teams: radio, team, and what that team grants. */
+.teams-table .team-cell { white-space: nowrap; }
+.teams-table .team-cell input { margin-right: 0.35rem; }
+.teams-table .team-rules { color: var(--text); }
+.team-rule { margin: 0.1rem 0; }
 .note-body { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; }
 
 /* The audit trail is a log of dropout rows: the summary line wraps freely

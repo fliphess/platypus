@@ -66,6 +66,19 @@ vulncheck: ## Check the code and its dependencies for known vulnerabilities
 dev: ## Run platypus locally with docker-compose
 	docker compose up --build
 
+.PHONY: dev-reload
+dev-reload: ## Rebuild web/worker and reload the templates (what a code change needs)
+	docker compose up -d --build web worker
+	# nginx resolves the web container's address once, at startup; a recreated
+	# container gets a new one, so without this reload every page is a 502.
+	docker compose restart dev-proxy
+	@for _ in $$(seq 1 30); do \
+		status=$$(curl -s -o /dev/null -w '%{http_code}' http://admin.localhost:8090/ || true); \
+		[ "$$status" != "502" ] && [ -n "$$status" ] && { echo "dev stack ready ($$status)"; exit 0; }; \
+		sleep 1; \
+	done; \
+	echo "dev stack did not become ready" >&2; exit 1
+
 .PHONY: dev-bootstrap-token
 dev-bootstrap-token: ## Print the bootstrap token of the local stack (test mode only)
 	@docker run --rm --network platypus_default \

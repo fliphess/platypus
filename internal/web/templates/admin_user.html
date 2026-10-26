@@ -1,5 +1,5 @@
 {{define "content"}}
-{{- with .Data}}{{$u := .Detail.User}}
+{{- with .Data}}{{$u := .Detail.User}}{{$data := .}}
 {{template "admin-open" (dict "Section" "users" "Title" $u.Label)}}
 <div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
 
@@ -42,16 +42,41 @@
 
 <div class="card">
   <h2>Teams</h2>
+  {{- if .AllTeams}}
   <form hx-post="/admin/users/{{$u.ID}}/teams" hx-target="find .messages" method="post" action="/admin/users/{{$u.ID}}/teams">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
-    {{- range .AllTeams}}{{$team := .}}
-    <label class="checkbox"><input type="checkbox" name="team_id" value="{{.ID}}"{{if .IDPGroup}} disabled{{end}}{{range $.Data.Detail.Teams}}{{if eq .ID $team.ID}} checked{{end}}{{end}}> {{.Name}}{{with .IDPGroup}} <span class="badge">{{.}}</span>{{end}}</label>
-    {{- else}}
-    <p class="muted">There are no teams yet. <a href="/admin/teams">Create one</a>.</p>
-    {{- end}}
+    <table class="teams-table">
+      <thead>
+        <tr><th>Team</th><th>Rules of the team</th></tr>
+      </thead>
+      <tbody>
+        {{- range .AllTeams}}{{$team := .}}
+        {{- $selected := false}}
+        {{- range $data.Detail.Teams}}{{if eq .ID $team.ID}}{{$selected = true}}{{end}}{{end}}
+        <tr>
+          <td class="team-cell">
+            <input type="checkbox" name="team_id" value="{{.ID}}" id="team-{{.ID}}"
+                   {{- if $selected}} checked{{end}}{{- if .IDPGroup}} disabled{{end}}>
+            <label for="team-{{.ID}}">{{.Name}}</label>
+            {{- with .IDPGroup}} <span class="badge">{{.}}</span>{{end}}
+          </td>
+          <td class="team-rules">
+            {{- $hasRules := false}}
+            {{- range $data.Rules}}{{if eq .Source.Team $team.Name}}{{$hasRules = true}}
+            <div class="team-rule"><span class="mono">{{.Pattern}}</span> <span class="muted">{{permissions .Permissions}}</span> <span class="muted">· {{.Source.Policy}}</span></div>
+            {{- end}}{{end}}
+            {{- if not $hasRules}}<span class="muted">no rules</span>{{end}}
+          </td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
     <div class="messages"></div>
-    {{- if .AllTeams}}<div class="actions"><button type="submit">Save teams</button></div>{{end}}
+    <div class="actions"><button type="submit">Save teams</button></div>
   </form>
+  {{- else}}
+  <p class="muted">There are no teams yet. <a href="/admin/teams">Create one</a>.</p>
+  {{- end}}
 </div>
 
 <div class="card">
