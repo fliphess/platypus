@@ -109,6 +109,10 @@ e2e: ## Run the browser tests (Playwright in Docker) against a fresh stack
 verify: generate-check vendored-check test sqlfluff css-check e2e ## Everything CI must pass before a change is done
 	golangci-lint run ./...
 
+.PHONY: screenshots
+screenshots: ## Capture documentation screenshots into docs/images
+	DOCS_SHOTS=1 ./e2e/run.sh
+
 .PHONY: guards-prove
 guards-prove: ## Reintroduce known bugs and prove the guards catch each one
 	./scripts/guards-prove.sh

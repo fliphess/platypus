@@ -813,6 +813,80 @@ const oidcPage = await oidcContext.newPage();
 oidcPage.on("console", (m) => { if (m.type() === "error") problems.push(`oidc console: ${m.text()}`); });
 oidcPage.on("pageerror", (e) => problems.push(`oidc page error: ${e.message}`));
 
+await step("documentation screenshots", async () => {
+  if (process.env.DOCS_SHOTS !== "1") return;
+  const fs = await import("node:fs");
+  const out = "/work/docs-images";
+  fs.mkdirSync(out, { recursive: true });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.evaluate(() => {
+    localStorage.setItem("platypus-theme", "light");
+    document.documentElement.dataset.theme = "light";
+  });
+  const shoot = async (name, path, selector) => {
+    await page.goto(base + path);
+    if (selector) await page.waitForSelector(selector);
+    // The test-mode strip is a development banner, not part of the product.
+    // (Inline CSS is blocked by the app's CSP, so remove it from the DOM.)
+    await page.evaluate(() => {
+      document.querySelectorAll(".status-strip, .toast").forEach((el) => el.remove());
+    });
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${out}/${name}.png` });
+    console.log("shot", name);
+  };
+
+  await shoot("01-home", "/", ".welcome");
+  await shoot("02-ssm-list", "/ssm", "#results .item-row");
+  await page.click("#results .item-grid");
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${out}/03-ssm-row.png` });
+  console.log("shot 03-ssm-row");
+  await page.goto(base + "/secrets");
+  const secretHref = await page.getAttribute("#results .item-row a[href^='/secrets/item?name=']", "href");
+  await shoot("04-secret-detail", secretHref, "h1");
+
+  // A normal team with the admin in it, so the examples show a populated
+  // team editor, not "no unlinked teams".
+  await page.goto(base + "/admin/teams/new");
+  await page.fill("#name", "Platform");
+  await page.click("button:has-text('Create team')");
+  await page.waitForURL("**/admin/teams/*?notice=created");
+  const platformPath = new URL(page.url()).pathname;
+  // Give the team a policy, so the example shows one.
+  await page.click(".policy-editor [data-add-choice]");
+  await page.selectOption(".policy-editor [data-choice-select]", { label: "Everything for admin" });
+  await page.click(".policy-editor button:has-text('Save policies')");
+  await page.waitForURL("**/policies/preview");
+  await page.click("form[action$='/policies'] button[type=submit]");
+  await page.waitForURL("**" + platformPath + "?notice=saved");
+
+  await page.goto(base + "/admin/users/1");
+  await page.click(".team-editor [data-add-choice]");
+  await page.selectOption(".team-editor [data-choice-select]", { label: "Platform" });
+  await page.click(".team-editor button:has-text('Save teams')");
+  await page.waitForURL("**/teams/preview");
+  await page.click("form[action$='/admin/users/1/teams'] button[type=submit]");
+  await page.waitForURL("**/admin/users/1?notice=saved");
+
+  await page.goto(base + "/admin/users");
+  const userHref = await page.getAttribute("#user-list a.person-name", "href");
+  await shoot("05-users", "/admin/users", "#user-list .person-name");
+  await shoot("06-user-detail", userHref, ".team-editor");
+
+  await shoot("07-teams", "/admin/teams", "#team-list a.cell-name");
+  await shoot("08-team-detail", platformPath, ".policy-editor");
+
+  await page.goto(base + "/admin/policies");
+  const policyHref = await page.getAttribute("#policy-list a.cell-name", "href");
+  await shoot("09-policies", "/admin/policies", "#policy-list a.cell-name");
+  await shoot("10-policy-editor", policyHref, ".rule-row");
+
+  await shoot("11-audit", "/admin/audit", "#audit-results .event-grid");
+  await shoot("12-docs", "/docs", ".docs article");
+});
+
 await step("oidc: log in at the identity provider", async () => {
   await oidcPage.goto(oidcBase + "/me");
   await oidcPage.waitForSelector("input[name=login]");

@@ -38,7 +38,8 @@ for _ in $(seq 1 30); do
 done
 [ -n "$token" ] || { echo "the worker issued no bootstrap token" >&2; exit 1; }
 
-mkdir -p e2e/shots
+mkdir -p e2e/shots docs/images
 docker run --rm --network platypus-e2e_default -e BOOTSTRAP_TOKEN="$token" \
-  -v "$PWD/e2e:/work" -w /work "$playwright_image" \
+  -e DOCS_SHOTS="${DOCS_SHOTS:-}" \
+  -v "$PWD/e2e:/work" -v "$PWD/docs/images:/work/docs-images" -w /work "$playwright_image" \
   bash -c "npm install --silent --no-audit --no-fund && node browser.test.mjs"

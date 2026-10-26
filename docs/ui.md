@@ -105,3 +105,5 @@ when their name or purpose could look like a login.
 Every interface change reuses this inventory (or adds a justified entry to
 it), keeps the tests and browser run green, and refreshes its screenshot in
 `e2e/shots/` so the result is visible without running the app.
+
+Screenshots of every view: [screenshots.md](screenshots.md).
