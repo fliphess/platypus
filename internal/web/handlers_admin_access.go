@@ -631,6 +631,10 @@ func formIDs(r *http.Request, field string) ([]int64, error) {
 	}
 	ids := make([]int64, 0, len(r.PostForm[field]))
 	for _, raw := range r.PostForm[field] {
+		// An empty dropdown line is "nothing chosen", not a bad value.
+		if raw == "" {
+			continue
+		}
 		id, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
 			return nil, problem.Invalid("The form contains an unknown selection.")

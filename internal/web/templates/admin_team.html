@@ -79,9 +79,8 @@
 
 <div class="card">
   <h2>Policies</h2>
-  {{template "policy-picker" (dict
+  {{template "policy-editor" (dict
        "Action" (printf "/admin/teams/%d/policies" $t.ID)
-       "ListID" "team-policies"
        "All" .AllPolicies
        "Selected" .Detail.Policies
        "CSRFToken" $.Viewer.Session.CSRFToken)}}

@@ -101,9 +101,8 @@
 <div class="card">
   <h2>Policies assigned directly</h2>
   <p class="muted small">For people without a team. Policies through teams are listed below under effective rules.</p>
-  {{template "policy-picker" (dict
+  {{template "policy-editor" (dict
        "Action" (printf "/admin/users/%d/policies" $u.ID)
-       "ListID" "user-policies"
        "All" .AllPolicies
        "Selected" .Detail.Policies
        "CSRFToken" $.Viewer.Session.CSRFToken)}}

@@ -156,7 +156,8 @@ await step("create a policy with the rule editor", async () => {
 });
 await step("assign the policy to the admin", async () => {
   await page.goto(base + "/admin/users/1");
-  await page.locator("label:has-text('Everything for admin') input").check();
+  await page.click("[data-policy-editor] [data-add-policy]");
+  await page.locator("[data-policy-select]").last().selectOption({ label: "Everything for admin" });
   await page.click("button:has-text('Save policies')");
   await page.waitForURL("**/admin/users/1?notice=saved");
 });
@@ -202,7 +203,8 @@ await step("a group-linked team takes its members from the login", async () => {
   await page.waitForURL("**/admin/teams/*?notice=created");
   const teamURL = new URL(page.url()).pathname;
 
-  await page.locator("label:has-text('Payments group') input").check();
+  await page.click("[data-policy-editor] [data-add-policy]");
+  await page.locator("[data-policy-select]").last().selectOption({ label: "Payments group" });
   await page.click("button:has-text('Save policies')");
   await page.waitForURL("**" + teamURL + "?notice=saved");
 
@@ -225,18 +227,36 @@ await step("a group-linked team takes its members from the login", async () => {
   if (teams.error || teams.headers !== 3 || teams.cells !== 3 || teams.checkboxes < 1 || !teams.aligned) {
     throw new Error(`the teams card is not a checkbox/policies/rules table: ${JSON.stringify(teams)}`);
   }
-  // The policy picker is one policy per line, not a run of labels.
-  const picker = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("#user-policies .picker-row"));
+  // The policy editor is one line per attached policy, each a dropdown.
+  const policyEditor = await page.evaluate(() => {
+    const form = document.querySelector("[data-policy-editor]");
+    if (!form) return { error: "no policy editor" };
+    const selects = Array.from(form.querySelectorAll("[data-policy-select]"));
     return {
-      rows: rows.length,
-      onePerLine: rows.every((row) => row.getBoundingClientRect().width > 200),
-      filter: Boolean(document.querySelector('#user-policies')?.parentElement?.querySelector('[data-filter-target="#user-policies"]')),
+      rows: form.querySelectorAll("[data-policy-row]").length,
+      selects: selects.length,
+      add: Boolean(form.querySelector("[data-add-policy]")),
+      chosen: selects.map((select) => select.value).filter(Boolean),
     };
   });
-  if (picker.rows < 1 || !picker.onePerLine || !picker.filter) {
-    throw new Error(`the policy picker is not a filterable list: ${JSON.stringify(picker)}`);
+  if (policyEditor.error || policyEditor.rows < 1 || policyEditor.rows !== policyEditor.selects || !policyEditor.add) {
+    throw new Error(`the policy editor is not a line per policy: ${JSON.stringify(policyEditor)}`);
   }
+  // A new line starts empty; every already attached policy is disabled in it.
+  await page.click("[data-policy-editor] [data-add-policy]");
+  const added = await page.evaluate(() => {
+    const selects = Array.from(document.querySelectorAll("[data-policy-select]"));
+    const last = selects.at(-1);
+    return {
+      value: last.value,
+      attached: selects.slice(0, -1).map((select) => select.value).filter(Boolean),
+      disabled: Array.from(last.options).filter((option) => option.disabled).map((option) => option.value),
+    };
+  });
+  if (added.value !== "" || !added.attached.every((id) => added.disabled.includes(id))) {
+    throw new Error(`a new policy line offers policies that are already attached: ${JSON.stringify(added)}`);
+  }
+  await page.locator("[data-policy-row]").last().locator("[data-remove-row]").click();
   // Rules open as a full-width row beneath the team, not inside its cell.
   const rulesToggle = page.locator("[data-row-toggle][aria-controls^='team-rules-']").first();
   const rulesRowId = await rulesToggle.getAttribute("aria-controls");

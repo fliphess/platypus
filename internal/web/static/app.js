@@ -239,7 +239,47 @@
   }
 
   // ---------------------------------------------------------------------
-  // Policy editor: add and remove rule rows.
+  // Policy editor: attached policies are lines with a dropdown. A dropdown
+  // only offers policies not already chosen on another line.
+  // ---------------------------------------------------------------------
+  function initPolicyEditor(form) {
+    if (form.dataset.ready) return;
+    form.dataset.ready = "true";
+    const selects = () => Array.from(form.querySelectorAll("[data-policy-select]"));
+    const sync = () => {
+      const chosen = selects().map((select) => select.value).filter(Boolean);
+      selects().forEach((select) => {
+        const own = select.value;
+        Array.from(select.options).forEach((option) => {
+          if (!option.value) return;
+          option.disabled = option.value !== own && chosen.includes(option.value);
+        });
+      });
+    };
+    form.addEventListener("change", (event) => {
+      if (event.target.matches("[data-policy-select]")) sync();
+    });
+    form.addEventListener("click", (event) => {
+      if (event.target.closest("[data-add-policy]")) {
+        const template = form.querySelector("template[data-policy-template]");
+        const rows = form.querySelector("[data-policy-rows]");
+        if (!template || !rows) return;
+        rows.append(template.content.firstElementChild.cloneNode(true));
+        sync();
+        selects().at(-1)?.focus();
+        return;
+      }
+      const remove = event.target.closest("[data-remove-row]");
+      if (remove) {
+        remove.closest("[data-policy-row]")?.remove();
+        sync();
+      }
+    });
+    sync();
+  }
+
+  // ---------------------------------------------------------------------
+  // Policy rule editor: add and remove rule rows.
   // ---------------------------------------------------------------------
   function initRuleEditor(editor) {
     const template = editor.querySelector("template");
@@ -440,6 +480,7 @@
     localizeTimes();
     document.querySelectorAll("[data-value-editor]:not([data-ready])").forEach(initValueEditor);
     document.querySelectorAll("[data-rule-editor]").forEach(initRuleEditor);
+    document.querySelectorAll("[data-policy-editor]").forEach(initPolicyEditor);
     hideRevealedValuesLater(document);
     dismissToasts();
     initToggles(document);
