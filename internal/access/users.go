@@ -336,8 +336,12 @@ func (s *Service) SetAdmin(ctx context.Context, userID int64, isAdmin bool) erro
 		if err := q.LockAdminChanges(ctx); err != nil {
 			return err
 		}
+		fresh, err := q.GetUser(ctx, userID)
+		if err != nil {
+			return err
+		}
 		if !isAdmin {
-			if err := ensureAnotherAdmin(ctx, q, user); err != nil {
+			if err := ensureAnotherAdmin(ctx, q, fresh); err != nil {
 				return err
 			}
 			// Leaving the admin group ends admin mode right away.
@@ -366,8 +370,12 @@ func (s *Service) SetDisabled(ctx context.Context, userID int64, disabled bool) 
 		if err := q.LockAdminChanges(ctx); err != nil {
 			return err
 		}
+		fresh, err := q.GetUser(ctx, userID)
+		if err != nil {
+			return err
+		}
 		if disabled {
-			if err := ensureAnotherAdmin(ctx, q, user); err != nil {
+			if err := ensureAnotherAdmin(ctx, q, fresh); err != nil {
 				return err
 			}
 			if err := q.DeleteUserSessions(ctx, userID); err != nil {
@@ -421,23 +429,35 @@ func (s *Service) Unlock(ctx context.Context, userID int64) error {
 // to an identity-provider group are not part of this: their members come
 // from the group, so they are neither added nor removed here.
 func (s *Service) SetUserTeams(ctx context.Context, userID int64, teamIDs []int64) error {
-	detail, err := s.UserDetail(ctx, userID)
-	if err != nil {
-		return err
-	}
-	for _, teamID := range teamIDs {
-		team, err := s.queries.GetTeam(ctx, teamID)
+	var before, after []string
+	var email string
+	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		if _, err := q.LockUser(ctx, userID); err != nil {
+			return err
+		}
+		user, err := q.GetUser(ctx, userID)
 		if err != nil {
 			return err
 		}
-		if err := linkedTeamError(team); err != nil {
+		email = user.Email
+		current, err := q.ListUserTeams(ctx, userID)
+		if err != nil {
 			return err
 		}
-	}
-	before := teamNames(detail.Teams)
-
-	err = database.InTx(ctx, s.pool, func(q *db.Queries) error {
-		for _, team := range detail.Teams {
+		before = teamNames(current)
+		for _, teamID := range teamIDs {
+			team, err := q.GetTeam(ctx, teamID)
+			if database.IsNoRows(err) {
+				return problem.Invalid("One of the selected teams doesn't exist.")
+			}
+			if err != nil {
+				return err
+			}
+			if err := linkedTeamError(team); err != nil {
+				return err
+			}
+		}
+		for _, team := range current {
 			if team.IDPGroup != nil || slices.Contains(teamIDs, team.ID) {
 				continue
 			}
@@ -454,31 +474,42 @@ func (s *Service) SetUserTeams(ctx context.Context, userID int64, teamIDs []int6
 				return err
 			}
 		}
+		latest, err := q.ListUserTeams(ctx, userID)
+		if err != nil {
+			return err
+		}
+		after = teamNames(latest)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-
-	after, err := s.queries.ListUserTeams(ctx, userID)
-	if err != nil {
-		return err
-	}
 	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionUserTeams, Outcome: audit.Allowed,
-		Details: map[string]any{"user": detail.User.Email, "before": before, "after": teamNames(after)}})
+		Details: map[string]any{"user": email, "before": before, "after": after}})
 	return nil
 }
 
 // SetUserPolicies assigns exactly these policies to the user directly.
 func (s *Service) SetUserPolicies(ctx context.Context, userID int64, policyIDs []int64) error {
-	detail, err := s.UserDetail(ctx, userID)
-	if err != nil {
-		return err
-	}
-	before := policyNames(detail.Policies)
-
-	err = database.InTx(ctx, s.pool, func(q *db.Queries) error {
-		for _, policy := range detail.Policies {
+	var before, after []string
+	var email string
+	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		// Lock the user so two admins editing the set cannot union their
+		// changes; read the current set only after the lock is held.
+		if _, err := q.LockUser(ctx, userID); err != nil {
+			return err
+		}
+		user, err := q.GetUser(ctx, userID)
+		if err != nil {
+			return err
+		}
+		email = user.Email
+		current, err := q.ListUserPolicies(ctx, userID)
+		if err != nil {
+			return err
+		}
+		before = policyNames(current)
+		for _, policy := range current {
 			if !slices.Contains(policyIDs, policy.ID) {
 				if err := q.UnassignPolicyFromUser(ctx, db.UnassignPolicyFromUserParams{UserID: userID, PolicyID: policy.ID}); err != nil {
 					return err
@@ -494,18 +525,18 @@ func (s *Service) SetUserPolicies(ctx context.Context, userID int64, policyIDs [
 				return err
 			}
 		}
+		latest, err := q.ListUserPolicies(ctx, userID)
+		if err != nil {
+			return err
+		}
+		after = policyNames(latest)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-
-	after, err := s.queries.ListUserPolicies(ctx, userID)
-	if err != nil {
-		return err
-	}
 	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionUserPolicies, Outcome: audit.Allowed,
-		Details: map[string]any{"user": detail.User.Email, "before": before, "after": policyNames(after)}})
+		Details: map[string]any{"user": email, "before": before, "after": after}})
 	return nil
 }
 

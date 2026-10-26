@@ -221,18 +221,20 @@ UPDATE totp_credentials
 SET last_used_step = $1,
     confirmed_at = coalesce(confirmed_at, now())
 WHERE user_id = $2 AND last_used_step < $1
+  AND secret_ciphertext = $3
 RETURNING user_id
 `
 
 type UseTOTPStepParams struct {
-	Step   int64
-	UserID int64
+	Step             int64
+	UserID           int64
+	SecretCiphertext []byte
 }
 
 // Accepts a TOTP time step, once. Returns no row when the step (or a later
 // one) was used before, which blocks replaying a code.
 func (q *Queries) UseTOTPStep(ctx context.Context, arg UseTOTPStepParams) (int64, error) {
-	row := q.db.QueryRow(ctx, useTOTPStep, arg.Step, arg.UserID)
+	row := q.db.QueryRow(ctx, useTOTPStep, arg.Step, arg.UserID, arg.SecretCiphertext)
 	var user_id int64
 	err := row.Scan(&user_id)
 	return user_id, err

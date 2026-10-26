@@ -211,9 +211,12 @@ func (s *Server) finishPasskeyRegistration(w http.ResponseWriter, r *http.Reques
 	if err := decodeJSON(r, &body); err != nil {
 		return err
 	}
-	state, _ := viewer.Session.Ceremony(s.now())
-	if err := s.services.Sessions.ClearCeremony(r.Context(), viewer.Session); err != nil {
+	state, ok, err := s.services.Sessions.TakeCeremony(r.Context(), viewer.Session)
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return problem.Invalid("Start the passkey step again.")
 	}
 	if err := s.services.MFA.FinishPasskeyRegistration(r.Context(), viewer.User, state, body.Credential, body.Name); err != nil {
 		return err

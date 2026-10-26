@@ -17,6 +17,9 @@ WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search
 ORDER BY t.name
 LIMIT @max_rows OFFSET @row_offset;
 
+-- name: LockTeam :one
+SELECT id FROM teams WHERE id = @id FOR UPDATE;
+
 -- name: GetTeam :one
 SELECT * FROM teams WHERE id = @id;
 

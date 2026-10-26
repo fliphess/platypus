@@ -296,6 +296,16 @@ func (q *Queries) ListUserTeams(ctx context.Context, userID int64) ([]Team, erro
 	return items, nil
 }
 
+const lockTeam = `-- name: LockTeam :one
+SELECT id FROM teams WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockTeam(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, lockTeam, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
 const removeTeamMember = `-- name: RemoveTeamMember :exec
 DELETE FROM team_members WHERE team_id = $1 AND user_id = $2
 `

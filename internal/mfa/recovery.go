@@ -36,6 +36,10 @@ func (s *Service) IssueRecoveryCodes(ctx context.Context, userID int64) ([]strin
 	}
 
 	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		// Two concurrent issuances must not both leave their batch valid.
+		if _, err := q.LockUser(ctx, userID); err != nil {
+			return err
+		}
 		if err := q.DeleteRecoveryCodes(ctx, userID); err != nil {
 			return err
 		}

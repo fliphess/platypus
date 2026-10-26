@@ -343,11 +343,21 @@ const lockAdminChanges = `-- name: LockAdminChanges :exec
 SELECT pg_advisory_xact_lock(7461001)
 `
 
-// Serialises changes to admins, so two admins can't remove each other at the
-// same moment and leave platypus without any. Call inside a transaction.
 func (q *Queries) LockAdminChanges(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockAdminChanges)
 	return err
+}
+
+const lockUser = `-- name: LockUser :one
+SELECT id FROM users WHERE id = $1 FOR UPDATE
+`
+
+// Serialises changes to admins, so two admins can't remove each other at the
+// same moment and leave platypus without any. Call inside a transaction.
+func (q *Queries) LockUser(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, lockUser, id)
+	err := row.Scan(&id)
+	return id, err
 }
 
 const recordFailedAttempt = `-- name: RecordFailedAttempt :one

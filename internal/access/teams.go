@@ -190,12 +190,23 @@ func (s *Service) DeleteTeam(ctx context.Context, id int64) error {
 
 // SetTeamPolicies assigns exactly these policies to the team.
 func (s *Service) SetTeamPolicies(ctx context.Context, teamID int64, policyIDs []int64) error {
-	detail, err := s.TeamDetail(ctx, teamID)
-	if err != nil {
-		return err
-	}
-	err = database.InTx(ctx, s.pool, func(q *db.Queries) error {
-		for _, policy := range detail.Policies {
+	var before, after []string
+	var name string
+	err := database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		if _, err := q.LockTeam(ctx, teamID); err != nil {
+			return err
+		}
+		team, err := q.GetTeam(ctx, teamID)
+		if err != nil {
+			return err
+		}
+		name = team.Name
+		current, err := q.ListTeamPolicies(ctx, teamID)
+		if err != nil {
+			return err
+		}
+		before = policyNames(current)
+		for _, policy := range current {
 			if !slices.Contains(policyIDs, policy.ID) {
 				if err := q.UnassignPolicyFromTeam(ctx, db.UnassignPolicyFromTeamParams{TeamID: teamID, PolicyID: policy.ID}); err != nil {
 					return err
@@ -211,18 +222,18 @@ func (s *Service) SetTeamPolicies(ctx context.Context, teamID int64, policyIDs [
 				return err
 			}
 		}
+		latest, err := q.ListTeamPolicies(ctx, teamID)
+		if err != nil {
+			return err
+		}
+		after = policyNames(latest)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-
-	after, err := s.queries.ListTeamPolicies(ctx, teamID)
-	if err != nil {
-		return err
-	}
 	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionTeamPolicies, Outcome: audit.Allowed,
-		Details: map[string]any{"team": detail.Team.Name, "before": policyNames(detail.Policies), "after": policyNames(after)}})
+		Details: map[string]any{"team": name, "before": before, "after": after}})
 	return nil
 }
 

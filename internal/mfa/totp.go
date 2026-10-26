@@ -77,14 +77,14 @@ func (s *Service) StartTOTPEnrollment(ctx context.Context, user db.User) (TOTPEn
 
 // ConfirmTOTPEnrollment activates a pending TOTP secret with a first code.
 func (s *Service) ConfirmTOTPEnrollment(ctx context.Context, user db.User, code string) error {
-	step, err := s.matchTOTP(ctx, user.ID, code, false)
+	step, credential, err := s.matchTOTP(ctx, user.ID, code, false)
 	if err != nil {
 		return err
 	}
 	if step == 0 {
 		return problem.Invalid("That code doesn't match. Check the time on your phone and try the next code.")
 	}
-	replay, err := s.useStep(ctx, user.ID, step)
+	replay, err := s.useStep(ctx, user.ID, step, credential)
 	if err != nil {
 		return err
 	}
@@ -98,14 +98,14 @@ func (s *Service) ConfirmTOTPEnrollment(ctx context.Context, user db.User, code 
 // VerifyTOTP checks a code for admin mode. Each code works once; failures
 // count towards the lockout.
 func (s *Service) VerifyTOTP(ctx context.Context, userID int64, code string) error {
-	step, err := s.matchTOTP(ctx, userID, code, true)
+	step, credential, err := s.matchTOTP(ctx, userID, code, true)
 	if err != nil {
 		return err
 	}
 	if step == 0 {
 		return s.guard.Failed(ctx, userID, "authenticator code")
 	}
-	replay, err := s.useStep(ctx, userID, step)
+	replay, err := s.useStep(ctx, userID, step, credential)
 	if err != nil {
 		// A database failure is not a wrong code: do not lock the user out
 		// for the store being unavailable.
@@ -129,46 +129,46 @@ func (s *Service) RemoveTOTP(ctx context.Context, userID int64) error {
 // matchTOTP returns the time step the code belongs to, allowing one step of
 // clock drift either way, or 0 when it doesn't match. confirmed selects
 // whether an active or a pending secret is checked.
-func (s *Service) matchTOTP(ctx context.Context, userID int64, code string, confirmed bool) (int64, error) {
+func (s *Service) matchTOTP(ctx context.Context, userID int64, code string, confirmed bool) (int64, []byte, error) {
 	cred, err := s.queries.GetTOTP(ctx, userID)
 	if database.IsNoRows(err) || (err == nil && (cred.ConfirmedAt != nil) != confirmed) {
 		if confirmed {
-			return 0, problem.Invalid("You have no authenticator app set up.")
+			return 0, nil, problem.Invalid("You have no authenticator app set up.")
 		}
-		return 0, problem.Invalid("Start setting up the authenticator app first.")
+		return 0, nil, problem.Invalid("Start setting up the authenticator app first.")
 	}
 	if err != nil {
-		return 0, fmt.Errorf("load TOTP: %w", err)
+		return 0, nil, fmt.Errorf("load TOTP: %w", err)
 	}
 	secret, err := s.sealer.Open(cred.SecretCiphertext, userContext(userID), cred.KeyID)
 	if err != nil {
-		return 0, fmt.Errorf("open TOTP secret: %w", err)
+		return 0, nil, fmt.Errorf("open TOTP secret: %w", err)
 	}
 
 	code = strings.ReplaceAll(strings.TrimSpace(code), " ", "")
 	if len(code) != 6 {
-		return 0, nil
+		return 0, nil, nil
 	}
 	now := s.now()
 	for _, drift := range []time.Duration{0, -totpPeriod, totpPeriod} {
 		at := now.Add(drift)
 		want, err := totp.GenerateCodeCustom(string(secret), at, totpOptions)
 		if err != nil {
-			return 0, fmt.Errorf("generate TOTP code: %w", err)
+			return 0, nil, fmt.Errorf("generate TOTP code: %w", err)
 		}
 		if subtle.ConstantTimeCompare([]byte(want), []byte(code)) == 1 {
-			return at.Unix() / int64(totpPeriod.Seconds()), nil
+			return at.Unix() / int64(totpPeriod.Seconds()), cred.SecretCiphertext, nil
 		}
 	}
-	return 0, nil
+	return 0, nil, nil
 }
 
 // useStep marks a time step as used. It fails when the step, or a later one,
 // was used before: the same code can't be replayed.
 // useStep consumes a time step. The bool reports a code that was already
 // used; any other error is infrastructure and must not count as an attempt.
-func (s *Service) useStep(ctx context.Context, userID, step int64) (bool, error) {
-	_, err := s.queries.UseTOTPStep(ctx, db.UseTOTPStepParams{UserID: userID, Step: step})
+func (s *Service) useStep(ctx context.Context, userID, step int64, credential []byte) (bool, error) {
+	_, err := s.queries.UseTOTPStep(ctx, db.UseTOTPStepParams{UserID: userID, Step: step, SecretCiphertext: credential})
 	if database.IsNoRows(err) {
 		return true, nil
 	}

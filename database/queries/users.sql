@@ -116,6 +116,9 @@ UPDATE users SET locked_at = null, failed_mfa_attempts = 0 WHERE id = @id;
 
 -- Serialises changes to admins, so two admins can't remove each other at the
 -- same moment and leave platypus without any. Call inside a transaction.
+-- name: LockUser :one
+SELECT id FROM users WHERE id = @id FOR UPDATE;
+
 -- name: LockAdminChanges :exec
 SELECT pg_advisory_xact_lock(7461001);
 

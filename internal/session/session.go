@@ -190,9 +190,18 @@ func (m *Manager) SaveCeremony(ctx context.Context, s Session, ceremony []byte) 
 	})
 }
 
-// ClearCeremony forgets a passkey step, so it can't be finished twice.
-func (m *Manager) ClearCeremony(ctx context.Context, s Session) error {
-	return m.queries.ClearWebAuthnCeremony(ctx, s.idHash)
+// TakeCeremony returns and clears the passkey ceremony atomically. Only the
+// request that receives it may finish the step, so two concurrent finishes
+// cannot validate the same challenge.
+func (m *Manager) TakeCeremony(ctx context.Context, s Session) ([]byte, bool, error) {
+	state, err := m.queries.TakeWebAuthnCeremony(ctx, s.idHash)
+	if database.IsNoRows(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return state, true, nil
 }
 
 // End ends a session and removes its cookie.

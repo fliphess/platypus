@@ -20,6 +20,7 @@ UPDATE totp_credentials
 SET last_used_step = @step,
     confirmed_at = coalesce(confirmed_at, now())
 WHERE user_id = @user_id AND last_used_step < @step
+  AND secret_ciphertext = @secret_ciphertext
 RETURNING user_id;
 
 -- name: DeleteTOTP :exec

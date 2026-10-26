@@ -19,6 +19,13 @@ UPDATE sessions
 SET webauthn_ceremony = @ceremony, webauthn_ceremony_until = @ceremony_until
 WHERE id_hash = @id_hash;
 
+-- name: TakeWebAuthnCeremony :one
+UPDATE sessions
+SET webauthn_ceremony = null, webauthn_ceremony_until = null
+WHERE id_hash = @id_hash AND webauthn_ceremony is not null
+  AND webauthn_ceremony_until is not null AND webauthn_ceremony_until > now()
+RETURNING webauthn_ceremony;
+
 -- name: ClearWebAuthnCeremony :exec
 UPDATE sessions SET webauthn_ceremony = null, webauthn_ceremony_until = null WHERE id_hash = @id_hash;
 

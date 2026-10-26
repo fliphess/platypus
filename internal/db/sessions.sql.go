@@ -145,6 +145,21 @@ func (q *Queries) SetWebAuthnCeremony(ctx context.Context, arg SetWebAuthnCeremo
 	return err
 }
 
+const takeWebAuthnCeremony = `-- name: TakeWebAuthnCeremony :one
+UPDATE sessions
+SET webauthn_ceremony = null, webauthn_ceremony_until = null
+WHERE id_hash = $1 AND webauthn_ceremony is not null
+  AND webauthn_ceremony_until is not null AND webauthn_ceremony_until > now()
+RETURNING webauthn_ceremony
+`
+
+func (q *Queries) TakeWebAuthnCeremony(ctx context.Context, idHash []byte) (json.RawMessage, error) {
+	row := q.db.QueryRow(ctx, takeWebAuthnCeremony, idHash)
+	var webauthn_ceremony json.RawMessage
+	err := row.Scan(&webauthn_ceremony)
+	return webauthn_ceremony, err
+}
+
 const touchSession = `-- name: TouchSession :exec
 UPDATE sessions SET last_seen_at = now(), expires_at = $1 WHERE id_hash = $2
 `
