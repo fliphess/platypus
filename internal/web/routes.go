@@ -59,8 +59,11 @@ func (s *Server) routes() http.Handler {
 	handle("GET /me/security", s.securityPage)
 	handle("POST /me/security/totp", s.startTOTP)
 	handle("POST /me/security/totp/confirm", s.confirmTOTP)
+	handle("POST /me/security/totp/remove/preview", s.previewRemoveTOTP)
 	handle("POST /me/security/totp/remove", s.removeTOTP)
+	handle("POST /me/security/passkeys/remove/preview", s.previewRemovePasskey)
 	handle("POST /me/security/passkeys/remove", s.removePasskey)
+	handle("POST /me/security/recovery-codes/preview", s.previewRecoveryCodes)
 	handle("POST /me/security/recovery-codes", s.issueRecoveryCodes)
 	handleJSON("POST /me/security/passkeys/begin", s.beginPasskeyRegistration)
 	handleJSON("POST /me/security/passkeys/finish", s.finishPasskeyRegistration)
@@ -106,6 +109,7 @@ func (s *Server) adminRoutes() []route {
 		{"POST /admin/users", s.addUser},
 		{"GET /admin/users/{id}", s.adminUser},
 		{"POST /admin/users/{id}/admin", s.userAction(s.setUserAdmin)},
+		{"POST /admin/users/{id}/disabled/preview", s.previewSetUserDisabled},
 		{"POST /admin/users/{id}/disabled", s.userAction(s.setUserDisabled)},
 		{"POST /admin/users/{id}/unlock", s.userAction(s.unlockUser)},
 		{"POST /admin/users/{id}/teams/preview", s.previewUserTeams},
@@ -122,6 +126,7 @@ func (s *Server) adminRoutes() []route {
 		{"POST /admin/teams/{id}/policies", s.teamAction(s.setTeamPolicies)},
 		{"GET /admin/teams/{id}/candidates", s.teamCandidates},
 		{"POST /admin/teams/{id}/members", s.teamAction(s.addTeamMember)},
+		{"POST /admin/teams/{id}/members/remove/preview", s.previewRemoveTeamMember},
 		{"POST /admin/teams/{id}/members/remove", s.teamAction(s.removeTeamMember)},
 		{"POST /admin/teams/{id}/delete/preview", s.previewDeleteTeam},
 		{"POST /admin/teams/{id}/delete", s.deleteTeam},

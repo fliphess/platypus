@@ -52,7 +52,9 @@
             <dd class="cell-actions">
               <a class="button" href="/admin/users/{{.ID}}">View details</a>
               {{- if not $t.IDPGroup}}
-              <form hx-post="/admin/teams/{{$t.ID}}/members/remove" class="inline-form" method="post" action="/admin/teams/{{$t.ID}}/members/remove">
+              <form id="remove-member-{{.ID}}" hx-post="/admin/teams/{{$t.ID}}/members/remove/preview"
+                    hx-target="#dialog-content" class="inline-form" method="post"
+                    action="/admin/teams/{{$t.ID}}/members/remove/preview">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
                 <input type="hidden" name="user_id" value="{{.ID}}">
                 <button type="submit" class="danger">Remove from this team</button>

@@ -26,11 +26,19 @@
       <input type="hidden" name="admin" value="{{if $u.IsAdmin}}false{{else}}true{{end}}">
       <button type="submit">{{if $u.IsAdmin}}Remove from admin group{{else}}Add to admin group{{end}}</button>
     </form>
+    {{- if $u.DisabledAt}}
     <form hx-post="/admin/users/{{$u.ID}}/disabled" hx-target="#account-messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/disabled">
 {{template "csrf" $.Viewer.Session.CSRFToken}}
-      <input type="hidden" name="disabled" value="{{if $u.DisabledAt}}false{{else}}true{{end}}">
-      <button type="submit"{{if not $u.DisabledAt}} class="danger"{{end}}>{{if $u.DisabledAt}}Enable account{{else}}Disable account{{end}}</button>
+      <input type="hidden" name="disabled" value="false">
+      <button type="submit">Enable account</button>
     </form>
+    {{- else}}
+    <form id="account-disabled" hx-post="/admin/users/{{$u.ID}}/disabled/preview" hx-target="#dialog-content" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/disabled/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+      <input type="hidden" name="disabled" value="true">
+      <button type="submit" class="danger">Disable account</button>
+    </form>
+    {{- end}}
     {{- if $u.LockedAt}}
     <form hx-post="/admin/users/{{$u.ID}}/unlock" hx-target="#account-messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/unlock">
 {{template "csrf" $.Viewer.Session.CSRFToken}}

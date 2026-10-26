@@ -12,7 +12,8 @@
   {{- if .Factors.TOTP}}
   <p><span class="badge ok">set up</span></p>
   {{- if .CanChange}}
-  <form method="post" action="/me/security/totp/remove">
+  <form id="remove-totp" hx-post="/me/security/totp/remove/preview" hx-target="#dialog-content"
+        method="post" action="/me/security/totp/remove/preview">
     {{template "csrf" $.Viewer.Session.CSRFToken}}
     <button class="danger" type="submit">Remove authenticator app</button>
   </form>
@@ -37,7 +38,9 @@
       <tr>
         <td>{{.Name}}</td><td>{{time .CreatedAt}}</td><td>{{time .LastUsedAt}}</td>
         <td>{{if $.Data.CanChange}}
-          <form method="post" action="/me/security/passkeys/remove" class="inline-form">
+          <form id="remove-passkey-{{.ID}}" hx-post="/me/security/passkeys/remove/preview"
+                hx-target="#dialog-content" method="post" action="/me/security/passkeys/remove/preview"
+                class="inline-form">
             {{template "csrf" $.Viewer.Session.CSRFToken}}
             <input type="hidden" name="passkey_id" value="{{.ID}}">
             <button type="submit">Remove</button>
@@ -65,7 +68,8 @@
   <h2>Recovery codes</h2>
   <p>{{.Factors.RecoveryCodesLeft}} unused recovery codes.</p>
   {{- if and .CanChange .Factors.Any}}
-  <form method="post" action="/me/security/recovery-codes">
+  <form id="new-recovery-codes" hx-post="/me/security/recovery-codes/preview" hx-target="#dialog-content"
+        method="post" action="/me/security/recovery-codes/preview">
     {{template "csrf" $.Viewer.Session.CSRFToken}}
     <button type="submit">Create new recovery codes</button>
     <span class="muted small">This replaces all your current codes.</span>

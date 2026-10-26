@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -122,6 +123,31 @@ func (s *Server) confirmTOTP(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// previewRemoveTOTP names what removing the app costs before it happens.
+func (s *Server) previewRemoveTOTP(w http.ResponseWriter, r *http.Request) error {
+	access, err := s.securityAccess(r, true)
+	if err != nil {
+		return err
+	}
+	message := "Admin mode keeps working with your other second factor."
+	switch {
+	case len(access.Factors.Passkeys) > 0:
+	case access.Factors.RecoveryCodesLeft > 0:
+		message = "Your recovery codes still work. Set up a new authenticator before you run out of them."
+	default:
+		message = "This is your only second factor. You can set one up again straight away, " +
+			"but until you do, you can't confirm admin mode."
+	}
+	s.renderFragment(w, r, http.StatusOK, "security", "confirm-action", confirmAction{
+		Title:   "Remove the authenticator app?",
+		Message: message,
+		Button:  "Remove authenticator app",
+		Action:  "/me/security/totp/remove",
+		Form:    "remove-totp",
+	})
+	return nil
+}
+
 func (s *Server) removeTOTP(w http.ResponseWriter, r *http.Request) error {
 	access, err := s.securityAccess(r, true)
 	if err != nil {
@@ -131,6 +157,42 @@ func (s *Server) removeTOTP(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	s.redirect(w, r, securityDone(access, "removed"))
+	return nil
+}
+
+// previewRemovePasskey confirms removing one named passkey, not a row the
+// page happened to have first.
+func (s *Server) previewRemovePasskey(w http.ResponseWriter, r *http.Request) error {
+	access, err := s.securityAccess(r, true)
+	if err != nil {
+		return err
+	}
+	id, err := strconv.ParseInt(r.PostFormValue("passkey_id"), 10, 64)
+	if err != nil {
+		return problem.Invalid("Unknown passkey.")
+	}
+	var name string
+	var found bool
+	for _, passkey := range access.Factors.Passkeys {
+		if passkey.ID == id {
+			name, found = passkey.Name, true
+		}
+	}
+	if !found {
+		return problem.NotFound("This passkey doesn't exist.")
+	}
+	message := "It can no longer confirm admin mode; you can add it again at any time."
+	if !access.Factors.TOTP && len(access.Factors.Passkeys) == 1 && access.Factors.RecoveryCodesLeft == 0 {
+		message = "It is your only second factor. You can add another passkey straight away, " +
+			"but until you do, you can't confirm admin mode."
+	}
+	s.renderFragment(w, r, http.StatusOK, "security", "confirm-action", confirmAction{
+		Title:   fmt.Sprintf("Remove the passkey %q?", name),
+		Message: message,
+		Button:  "Remove passkey",
+		Action:  "/me/security/passkeys/remove",
+		Form:    fmt.Sprintf("remove-passkey-%d", id),
+	})
 	return nil
 }
 
@@ -153,6 +215,26 @@ func (s *Server) removePasskey(w http.ResponseWriter, r *http.Request) error {
 type recoveryCodesData struct {
 	Codes    []string
 	Continue string
+}
+
+// previewRecoveryCodes warns that the old codes stop working, since the new
+// batch is the only one left.
+func (s *Server) previewRecoveryCodes(w http.ResponseWriter, r *http.Request) error {
+	access, err := s.securityAccess(r, true)
+	if err != nil {
+		return err
+	}
+	if !access.Factors.Any() {
+		return problem.Invalid("Set up an authenticator app or a passkey first.")
+	}
+	s.renderFragment(w, r, http.StatusOK, "security", "confirm-action", confirmAction{
+		Title:   "Create new recovery codes?",
+		Message: "Any codes you have now stop working immediately. The new ones are shown once, so save them before leaving the page.",
+		Button:  "Create new codes",
+		Action:  "/me/security/recovery-codes",
+		Form:    "new-recovery-codes",
+	})
+	return nil
 }
 
 // issueRecoveryCodes shows new recovery codes once. They are not stored in

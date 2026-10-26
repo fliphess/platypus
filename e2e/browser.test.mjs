@@ -321,6 +321,15 @@ await step("user detail actions reach the server", async () => {
   if (!href) throw new Error("the new account is not listed");
   await page.goto(base + href);
   await page.click("button:has-text('Disable account')");
+  await page.waitForSelector("dialog[open] >> text=Disable newbie@example.com?");
+  await page.click("dialog button:has-text('Cancel')");
+  await page.waitForSelector("dialog:not([open])", { state: "attached" });
+  if (!(await page.locator("button:has-text('Disable account')").count())) {
+    throw new Error("cancelling the dialog disabled the account");
+  }
+  await page.click("button:has-text('Disable account')");
+  await page.waitForSelector("dialog[open]");
+  await page.click("dialog button:has-text('Disable account')");
   await page.waitForURL("**/admin/users/*?notice=saved");
   await page.click("button:has-text('Enable account')");
   await page.waitForURL("**/admin/users/*?notice=saved");

@@ -600,6 +600,68 @@ func (s *Server) removeTeamMember(r *http.Request, id int64) error {
 	return s.services.Access.RemoveTeamMember(r.Context(), id, userID)
 }
 
+// previewSetUserDisabled confirms locking someone out; enabling needs no
+// confirmation.
+func (s *Server) previewSetUserDisabled(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	user, err := s.services.Access.User(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	disabled := r.PostFormValue("disabled") == "true"
+	title, message, button := "Disable "+user.Email+"?", "", "Disable account"
+	if disabled {
+		message = "They are signed out and can't sign in again until an admin enables the account."
+	} else {
+		title, message, button = "Enable "+user.Email+"?", "They can sign in again.", "Enable account"
+	}
+	s.renderFragment(w, r, http.StatusOK, "admin_user", "confirm-action", confirmAction{
+		Title:   title,
+		Message: message,
+		Button:  button,
+		Action:  fmt.Sprintf("/admin/users/%d/disabled", id),
+		Form:    "account-disabled",
+	})
+	return nil
+}
+
+// previewRemoveTeamMember confirms which person is about to lose the team's
+// policies: the row's hidden id says so, not the page order.
+func (s *Server) previewRemoveTeamMember(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	userID, err := strconv.ParseInt(r.PostFormValue("user_id"), 10, 64)
+	if err != nil {
+		return problem.Invalid("Unknown user.")
+	}
+	detail, err := s.services.Access.TeamDetail(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	email, found := "", false
+	for _, member := range detail.Members {
+		if member.ID == userID {
+			email, found = member.Email, true
+		}
+	}
+	if !found {
+		return problem.NotFound("This person is not in the team.")
+	}
+	s.renderFragment(w, r, http.StatusOK, "admin_team", "confirm-action", confirmAction{
+		Title:   fmt.Sprintf("Remove %s from %s?", email, detail.Team.Name),
+		Message: "They lose the policies they had through this team. You can add them back at any time.",
+		Button:  "Remove member",
+		Action:  fmt.Sprintf("/admin/teams/%d/members/remove", id),
+		Form:    fmt.Sprintf("remove-member-%d", userID),
+	})
+	return nil
+}
+
 func (s *Server) previewDeleteTeam(w http.ResponseWriter, r *http.Request) error {
 	id, err := pathID(r)
 	if err != nil {
