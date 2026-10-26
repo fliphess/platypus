@@ -160,6 +160,25 @@ await step("assign the policy to the admin", async () => {
   await page.click("button:has-text('Save policies')");
   await page.waitForURL("**/admin/users/1?notice=saved");
 });
+await step("save and add another", async () => {
+  await page.goto(base + "/ssm/new");
+  await page.waitForSelector("button[name=after][value=another]");
+  const label = (await page.locator("button[name=after][value=view]").innerText()).trim();
+  if (label !== "Save") throw new Error(`the first create button says ${JSON.stringify(label)}, want Save`);
+  await page.fill("#name", "/apps/another-one");
+  await page.fill("textarea[name=value]", "another-value");
+  await page.click("button[name=after][value=another]");
+  await page.waitForSelector("dialog[open]");
+  await page.click("dialog button:has-text('Continue')");
+  await page.waitForURL("**/ssm/new?notice=saved");
+  const empty = await page.evaluate(() => ({
+    name: document.querySelector("#name").value,
+    value: document.querySelector("textarea[name=value]").value,
+  }));
+  if (empty.name !== "" || empty.value !== "") {
+    throw new Error(`the next create form is not empty: ${JSON.stringify(empty)}`);
+  }
+});
 await step("a group-linked team takes its members from the login", async () => {
   await page.goto(base + "/admin/policies/new");
   await page.fill("#name", "Payments group");
@@ -540,6 +559,22 @@ await step("layout invariants hold", async () => {
     };
   });
   if (items.overflow > 0) throw new Error(`the item list overflows by ${items.overflow}px`);
+  const pager = await page.evaluate(() => {
+    const steps = document.querySelector(".page-steps");
+    const select = document.querySelector(".page-size select");
+    const step = document.querySelector(".page-step");
+    const current = document.querySelector(".page-num.current");
+    if (!steps || !select || !step || !current) return { error: "a pager part is missing" };
+    const a = steps.getBoundingClientRect(), b = select.getBoundingClientRect();
+    return {
+      row: Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)),
+      heights: [Math.round(step.getBoundingClientRect().height), Math.round(select.getBoundingClientRect().height), Math.round(current.getBoundingClientRect().height)],
+      current: current.textContent.trim(),
+    };
+  });
+  if (pager.error || pager.row > 2 || new Set(pager.heights).size !== 1 || pager.current !== "1") {
+    throw new Error(`the pager is not one aligned row: ${JSON.stringify(pager)}`);
+  }
   if (!items.aligned) throw new Error(`item columns misaligned: ${JSON.stringify(items.offsets)}`);
   if ((await page.locator("#results .row-edit a[href^='/ssm/edit']").count()) === 0) {
     throw new Error("rows have no Edit action");
@@ -622,6 +657,19 @@ await step("layout invariants hold", async () => {
     throw new Error(`the users table has ${people.headerCount} headers for ${people.cellCount} fields`);
   }
   if (!people.aligned) throw new Error(`the users table is not aligned with its header: ${JSON.stringify(people.offsets)}`);
+  // One separator, not two: the pager carries it, the last row does not.
+  const separators = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll("#user-list tbody tr:not(.detail-row)"));
+    const last = rows[rows.length - 1];
+    const pager = document.querySelector("#user-list .pager");
+    return {
+      rowBorder: getComputedStyle(last.querySelector("td")).borderBottomWidth,
+      pagerBorder: pager ? getComputedStyle(pager).borderTopWidth : null,
+    };
+  });
+  if (separators.rowBorder !== "0px" || !separators.pagerBorder || separators.pagerBorder === "0px") {
+    throw new Error(`the users list draws a double separator: ${JSON.stringify(separators)}`);
+  }
   const firstToggle = page.locator("#user-list .row-toggle").first();
   const detailId = await firstToggle.getAttribute("aria-controls");
   await firstToggle.click();

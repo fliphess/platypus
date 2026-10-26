@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const countOrphanedNotes = `-- name: CountOrphanedNotes :one
+SELECT count(*) FROM notes n
+LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
+WHERE i.name is null
+`
+
+func (q *Queries) CountOrphanedNotes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrphanedNotes)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteNote = `-- name: DeleteNote :exec
 DELETE FROM notes WHERE kind = $1 AND name = $2
 `
@@ -55,6 +68,45 @@ ORDER BY n.kind, n.name
 // Notes whose item no longer exists in AWS (or is hidden).
 func (q *Queries) ListOrphanedNotes(ctx context.Context) ([]Note, error) {
 	rows, err := q.db.Query(ctx, listOrphanedNotes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Note{}
+	for rows.Next() {
+		var i Note
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Name,
+			&i.Body,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrphanedNotesPage = `-- name: ListOrphanedNotesPage :many
+SELECT n.kind, n.name, n.body, n.updated_at, n.updated_by FROM notes n
+LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
+WHERE i.name is null
+ORDER BY n.kind, n.name
+LIMIT $2 OFFSET $1
+`
+
+type ListOrphanedNotesPageParams struct {
+	RowOffset int32
+	MaxRows   int32
+}
+
+func (q *Queries) ListOrphanedNotesPage(ctx context.Context, arg ListOrphanedNotesPageParams) ([]Note, error) {
+	rows, err := q.db.Query(ctx, listOrphanedNotesPage, arg.RowOffset, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}

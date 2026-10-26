@@ -423,6 +423,10 @@ type confirmChange struct {
 	Summary items.Summary
 	Action  string
 	Form    string
+	// After is carried into the final submit ("another" keeps the create form
+	// open with a fresh, empty one). It is set by the form's own button and
+	// travels through the confirmation step.
+	After string
 }
 
 // confirmAction is the data of the "confirm-action" fragment: a simple

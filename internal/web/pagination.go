@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 )
 
@@ -52,6 +53,8 @@ type pager struct {
 	PrevLink  template.URL
 	NextLink  template.URL
 	LastLink  template.URL
+	// Pages is the numbered window: 1 … 4 5 6 … 20.
+	Pages []pageLink
 	// Hidden keeps the list's filters in the page-size form.
 	Hidden template.HTML
 }
@@ -99,6 +102,42 @@ func hiddenFilters(values url.Values) template.HTML {
 	return out
 }
 
+// pageLink is one entry in the numbered window. Gap marks an ellipsis.
+type pageLink struct {
+	Number  int
+	URL     template.URL
+	Current bool
+	Gap     bool
+}
+
+// pageWindow is the conventional numbered range: always the first and last
+// page, the current one and two either side, with an ellipsis where numbers
+// are skipped.
+func pageWindow(current, last int, path string, values url.Values, perPage int) []pageLink {
+	if last <= 1 {
+		return []pageLink{{Number: 1, URL: listURL(path, values, 1, perPage), Current: true}}
+	}
+	wanted := map[int]bool{1: true, last: true}
+	for n := current - 2; n <= current+2; n++ {
+		if n >= 1 && n <= last {
+			wanted[n] = true
+		}
+	}
+	numbers := make([]int, 0, len(wanted))
+	for n := range wanted {
+		numbers = append(numbers, n)
+	}
+	sort.Ints(numbers)
+	links := make([]pageLink, 0, len(numbers)+2)
+	for i, n := range numbers {
+		if i > 0 && n-numbers[i-1] > 1 {
+			links = append(links, pageLink{Gap: true})
+		}
+		links = append(links, pageLink{Number: n, URL: listURL(path, values, n, perPage), Current: n == current})
+	}
+	return links
+}
+
 // newPager assembles the controls for a list page.
 func newPager(path, target, summary string, values url.Values, page, lastPage, perPage int, total int64) pager {
 	p := pager{
@@ -114,5 +153,6 @@ func newPager(path, target, summary string, values url.Values, page, lastPage, p
 		p.NextLink = listURL(path, values, page+1, perPage)
 		p.LastLink = listURL(path, values, p.LastPage, perPage)
 	}
+	p.Pages = pageWindow(page, p.LastPage, path, values, perPage)
 	return p
 }

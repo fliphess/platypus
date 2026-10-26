@@ -71,12 +71,30 @@ func (s *Server) requestSync(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+type notesData struct {
+	Notes []db.Note
+	Pager pager
+}
+
 func (s *Server) orphanedNotes(w http.ResponseWriter, r *http.Request) error {
-	notes, err := s.services.Catalog.OrphanedNotes(r.Context())
+	size := pageSize(r)
+	pageNumber := pageNumber(r)
+	notes, total, err := s.services.Catalog.OrphanedNotesPage(r.Context(), pageNumber, size)
 	if err != nil {
 		return err
 	}
-	s.render(w, r, http.StatusOK, "admin_notes", page{Title: "Orphaned notes", Tab: "admin", Data: notes})
+	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	first := (pageNumber-1)*size + 1
+	if len(notes) == 0 {
+		first = 0
+	}
+	summary := fmt.Sprintf("Page %d of %d · %d notes", pageNumber, lastPage, total)
+	if len(notes) > 0 {
+		summary = fmt.Sprintf("%d–%d of %d", first, first+len(notes)-1, total)
+	}
+	data := notesData{Notes: notes}
+	data.Pager = newPager("/admin/notes", "#notes-list", summary, r.URL.Query(), pageNumber, lastPage, size, total)
+	s.render(w, r, http.StatusOK, "admin_notes", page{Title: "Orphaned notes", Tab: "admin", Data: data})
 	return nil
 }
 

@@ -52,7 +52,8 @@
 {{- end}}
 <div id="dialog-messages" class="messages"></div>
 <div class="actions">
-  <button class="primary" hx-post="{{.Action}}" hx-include="#{{.Form}}" hx-target="#dialog-messages">Continue</button>
+  <button class="primary" hx-post="{{.Action}}" hx-include="#{{.Form}}" hx-target="#dialog-messages"
+          {{- with .After}} hx-vals='{"after":"{{.}}"}'{{end}}>Continue</button>
   <button type="button" data-dismiss>Cancel</button>
 </div>
 {{end}}
@@ -112,8 +113,21 @@
        way to the neighbouring pages. One definition, so no list drifts. */}}
 {{define "pager"}}
 {{- if gt .Total 0}}
-<nav class="pager" aria-label="Pages">
-  <span class="muted small">{{.Summary}}</span>
+<nav class="pager" aria-label="Pagination">
+  <span class="pager-start">
+    <span class="muted small">{{.Summary}}</span>
+    <span class="page-steps" role="group" aria-label="Page navigation">
+      {{- if .FirstLink}}<a class="button page-step" href="{{.FirstLink}}" aria-label="First page" title="First page">&laquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="First page" title="First page">&laquo;</span>{{end}}
+      {{- if .PrevLink}}<a class="button page-step" href="{{.PrevLink}}" aria-label="Previous page" title="Previous page">&lsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Previous page" title="Previous page">&lsaquo;</span>{{end}}
+      {{- range .Pages}}
+      {{- if .Gap}}<span class="page-gap" aria-hidden="true">…</span>
+      {{- else if .Current}}<span class="page-num current" aria-current="page">{{.Number}}</span>
+      {{- else}}<a class="page-num" href="{{.URL}}" aria-label="Page {{.Number}}">{{.Number}}</a>{{end}}
+      {{- end}}
+      {{- if .NextLink}}<a class="button page-step" href="{{.NextLink}}" aria-label="Next page" title="Next page">&rsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Next page" title="Next page">&rsaquo;</span>{{end}}
+      {{- if .LastLink}}<a class="button page-step" href="{{.LastLink}}" aria-label="Last page" title="Last page">&raquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Last page" title="Last page">&raquo;</span>{{end}}
+    </span>
+  </span>
   <form class="page-size" method="get" action="{{.Action}}">
     {{.Hidden}}
     <label>Per page
@@ -125,12 +139,6 @@
     </label>
     <noscript><button type="submit">Apply</button></noscript>
   </form>
-  <span class="page-steps" role="group" aria-label="Page navigation">
-    {{- if .FirstLink}}<a class="button page-step" href="{{.FirstLink}}" aria-label="First page" title="First page">&laquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="First page" title="First page">&laquo;</span>{{end}}
-    {{- if .PrevLink}}<a class="button page-step" href="{{.PrevLink}}" aria-label="Previous page" title="Previous page">&lsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Previous page" title="Previous page">&lsaquo;</span>{{end}}
-    {{- if .NextLink}}<a class="button page-step" href="{{.NextLink}}" aria-label="Next page" title="Next page">&rsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Next page" title="Next page">&rsaquo;</span>{{end}}
-    {{- if .LastLink}}<a class="button page-step" href="{{.LastLink}}" aria-label="Last page" title="Last page">&raquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Last page" title="Last page">&raquo;</span>{{end}}
-  </span>
 </nav>
 {{- end}}
 {{end}}

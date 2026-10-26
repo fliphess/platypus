@@ -55,7 +55,12 @@
 
   <div class="messages"></div>
   <div class="actions">
-    <button class="primary" type="submit">{{if .IsNew}}Create{{else}}Save{{end}}</button>
+    {{- if .IsNew}}
+    <button class="primary" type="submit" name="after" value="view">Save</button>
+    <button type="submit" name="after" value="another">Save and add another</button>
+    {{- else}}
+    <button class="primary" type="submit">Save</button>
+    {{- end}}
     <a class="button" href="{{if .IsNew}}/{{$kind}}{{else}}/{{$kind}}/item?name={{.Name}}{{end}}">Cancel</a>
   </div>
 </form>

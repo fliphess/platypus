@@ -71,3 +71,35 @@ func TestPagerEscapesHiddenFilters(t *testing.T) {
 		t.Errorf("a filter value escaped into HTML: %s", p.Hidden)
 	}
 }
+
+// The numbered window is the familiar one: first and last, two either side of
+// the current page, and an ellipsis where numbers are skipped.
+func TestPageWindow(t *testing.T) {
+	values := url.Values{}
+	pages := pageWindow(10, 20, "/ssm", values, DefaultPageSize)
+	var numbers []int
+	gaps := 0
+	for _, link := range pages {
+		if link.Gap {
+			gaps++
+			continue
+		}
+		numbers = append(numbers, link.Number)
+	}
+	want := []int{1, 8, 9, 10, 11, 12, 20}
+	if len(numbers) != len(want) {
+		t.Fatalf("window = %v, want %v", numbers, want)
+	}
+	for i, n := range want {
+		if numbers[i] != n {
+			t.Fatalf("window = %v, want %v", numbers, want)
+		}
+	}
+	if gaps != 2 {
+		t.Errorf("gaps = %d, want 2", gaps)
+	}
+	single := pageWindow(1, 1, "/ssm", values, DefaultPageSize)
+	if len(single) != 1 || !single[0].Current || single[0].Number != 1 {
+		t.Errorf("a single page should show page 1 as current: %+v", single)
+	}
+}

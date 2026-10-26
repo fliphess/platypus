@@ -41,3 +41,25 @@ func (c *Catalog) SaveNote(ctx context.Context, kind item.Kind, name, body, upda
 func (c *Catalog) OrphanedNotes(ctx context.Context) ([]db.Note, error) {
 	return c.queries.ListOrphanedNotes(ctx)
 }
+
+// OrphanedNotesPage returns one page of orphaned notes and the total, so the
+// page uses the same pager as every other list.
+func (c *Catalog) OrphanedNotesPage(ctx context.Context, page, perPage int) ([]db.Note, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 50
+	}
+	total, err := c.queries.CountOrphanedNotes(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	notes, err := c.queries.ListOrphanedNotesPage(ctx, db.ListOrphanedNotesPageParams{
+		MaxRows: int32(perPage), RowOffset: int32((page - 1) * perPage), //nolint:gosec // page bounded by the pager
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return notes, total, nil
+}

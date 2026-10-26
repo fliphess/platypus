@@ -3,26 +3,29 @@
 <div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
 <p class="muted">Notes on items that no longer exist in AWS, or that platypus can no longer access. They stay so nothing is lost.</p>
 <div class="card">
-  {{- if .Data}}
-  <ul class="events">
-    {{- range .Data}}
-    <li>
-      <details class="event">
-        <summary class="event-head">
-          <span class="badge">{{.Kind}}</span>
-          <span class="event-item mono">{{.Name}}</span>
-          <span class="event-time">{{time .UpdatedAt}}{{with .UpdatedBy}} · {{.}}{{end}}</span>
-        </summary>
-        <div class="event-body">
-          <p class="note-body">{{.Body}}</p>
-        </div>
-      </details>
-    </li>
+  <div id="notes-list">
+    {{- with .Data.Notes}}
+    <table class="notes-table">
+      <thead>
+        <tr><th>Kind</th><th>Item</th><th>Updated</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        {{- range .}}
+        <tr>
+          <td><span class="badge">{{.Kind}}</span></td>
+          <td class="mono note-name" title="{{.Name}}">{{breakPath .Name}}</td>
+          <td class="when">{{time .UpdatedAt}}
+            <div class="cell-sub">{{with .UpdatedBy}}{{.}}{{else}}unknown{{end}}</div></td>
+          <td class="note-cell"><p class="note-body">{{.Body}}</p></td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
+    {{template "pager" $.Data.Pager}}
+    {{- else}}
+    <p class="empty">No orphaned notes.</p>
     {{- end}}
-  </ul>
-  {{- else}}
-  <p class="empty">No orphaned notes.</p>
-  {{- end}}
+  </div>
 </div>
 {{template "admin-close"}}
 {{end}}

@@ -454,6 +454,10 @@ td.mono-cell, .mono-cell {
 }
 .people-table .unnamed { color: var(--muted); font-style: italic; font-weight: 400; }
 .people-table td.state-cell { white-space: nowrap; }
+/* The pager draws the closing line. Because each person is followed by a
+   (hidden) detail row, the last person's row is the second-to-last tr, so it
+   keeps its own border and the table would show two lines. */
+.people-table tbody tr:nth-last-child(2) td { border-bottom: none; }
 .person-line { display: flex; align-items: center; gap: 0.5rem; }
 .person-ident { min-width: 0; }
 /* The row's disclosure: a quiet chevron that says whether it is open. */
@@ -531,6 +535,11 @@ td.mono-cell, .mono-cell {
 .teams-table .team-rules { color: var(--text); }
 .team-rule { margin: 0.1rem 0; }
 .note-body { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; }
+/* Orphaned notes: the note is the point, so it wraps in full; the item name
+   keeps its own column rather than squeezing the text. */
+.notes-table .note-name { word-break: break-all; }
+.notes-table .note-cell { max-width: 46rem; }
+.notes-table td { vertical-align: top; }
 
 /* The audit trail is a log of dropout rows: the summary line wraps freely
    (nothing clipped), and clicking it opens the complete record — every
@@ -670,11 +679,73 @@ dl.facts dd { margin: 0; word-break: break-all; }
 /* Item lists: the shared table spec (top of the tables section) carries the
    column rules; only the list-specific bits live here. */
 
-.pager { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
-.pager > span:first-child { margin-right: auto; }
-.page-size { display: flex; align-items: center; gap: 0.4rem; }
+/* One row: where you are and the steps on the left, the page size on the
+   right. Buttons and select share a height, so they read as one control. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  /* The pager is its own row: separated from the last table row, never
+     sitting on top of it, in every list. */
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.pager-start { display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.page-size { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; }
+/* "Per page" sits beside the select, not above it: the whole control is one
+   line as tall as the step buttons. */
+.page-size label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-weight: 500;
+  white-space: nowrap;
+}
 .page-steps { display: inline-flex; gap: 0.25rem; }
-.page-step { min-width: 2rem; text-align: center; padding: 0.3rem 0.45rem; }
+.page-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  line-height: 1;
+}
+.page-size select { height: 2.1rem; padding: 0 0.5rem; }
+/* Numbered pages: the familiar shape, same height as the step buttons. */
+.page-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.page-num:hover { border-color: var(--muted); }
+.page-num.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.page-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 2.1rem;
+  color: var(--muted);
+}
 .page-step[aria-disabled=true] { opacity: 0.4; cursor: default; }
 
 /* Front page */

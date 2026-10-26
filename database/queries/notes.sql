@@ -16,3 +16,15 @@ SELECT n.* FROM notes n
 LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
 WHERE i.name is null
 ORDER BY n.kind, n.name;
+
+-- name: CountOrphanedNotes :one
+SELECT count(*) FROM notes n
+LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
+WHERE i.name is null;
+
+-- name: ListOrphanedNotesPage :many
+SELECT n.* FROM notes n
+LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'
+WHERE i.name is null
+ORDER BY n.kind, n.name
+LIMIT @max_rows OFFSET @row_offset;

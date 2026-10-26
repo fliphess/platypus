@@ -192,6 +192,7 @@ func (s *Server) previewCreate(kind item.Kind) handlerFunc {
 		}
 		s.renderFragment(w, r, http.StatusOK, "item_form", "confirm", confirmChange{
 			Summary: summary, Action: "/" + kindPath(kind) + "/new", Form: "item-form",
+			After: r.PostFormValue("after"),
 		})
 		return nil
 	}
@@ -207,6 +208,11 @@ func (s *Server) createItem(kind item.Kind) handlerFunc {
 		n := newItemFromForm(r, kind)
 		if err := s.services.Items.Create(r.Context(), viewer.Subject, teams, n); err != nil {
 			return err
+		}
+		// "Save and add another" returns to a fresh form instead of the item.
+		if r.PostFormValue("after") == "another" {
+			s.redirect(w, r, "/"+kindPath(kind)+"/new?notice=saved")
+			return nil
 		}
 		s.redirect(w, r, itemURL(kind, n.Name)+"&notice=created")
 		return nil
