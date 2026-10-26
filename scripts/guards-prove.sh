@@ -17,7 +17,7 @@ trap 'git checkout -- internal cmd database 2>/dev/null || true' EXIT
 
 # name | file | python replacement (old -> new) | text the failing guard prints
 mutants=$(cat <<'TABLE'
-utc|internal/web/render.go|viewer.User.Timezone != "local"|viewer.User.Timezone != "local-impossible"|the server rendered UTC
+utc|internal/web/render.go|viewer.User.Timezone != "local"|viewer.User.Timezone != "local-impossible"|the server rendered UTC|shows UTC or a stale time
 pager-row|internal/web/static/css/06-audit-pager.css|  width: 2.1rem;\n  height: 2.1rem;\n  padding: 0;\n  line-height: 1;|  width: 2.1rem;\n  height: 3rem;\n  padding: 0;\n  line-height: 1;|the pager is not one aligned row
 users-header|internal/web/templates/admin_users.html|<th>Status</th>||the users table has
 items-header|internal/web/templates/browse.html|<th>Type</th>||the items table has
@@ -49,7 +49,9 @@ PY
 		restore "$file"
 		exit 1
 	fi
-	if ! grep -qF "$expect" /tmp/guards-prove.log; then
+	# A regression can be caught by any of the guards that cover it; the
+	# expectation lists the acceptable messages, separated by |.
+	if ! grep -Eq "$expect" /tmp/guards-prove.log; then
 		echo "MUTANT CAUGHT BY THE WRONG GUARD: $name (wanted: $expect)" >&2
 		grep -E "^FAIL|problems:" /tmp/guards-prove.log | head -5 >&2
 		restore "$file"
