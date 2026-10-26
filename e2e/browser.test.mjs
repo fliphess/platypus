@@ -133,6 +133,17 @@ await step("create a policy with the rule editor", async () => {
   // On the saved policy, every rule row is editable, not just the first.
   const rows = page.locator(".rule-row");
   if ((await rows.count()) !== 2) throw new Error(`expected 2 rule rows, found ${await rows.count()}`);
+  const glyph = await rows.nth(0).locator(".remove-row").evaluate((button) => {
+    const box = button.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(button);
+    const text = range.getBoundingClientRect();
+    return {
+      dx: Math.abs((box.left + box.width / 2) - (text.left + text.width / 2)),
+      dy: Math.abs((box.top + box.height / 2) - (text.top + text.height / 2)),
+    };
+  });
+  if (glyph.dx >= 1 || glyph.dy >= 1) throw new Error(`the remove × is off centre: ${JSON.stringify(glyph)}`);
   await rows.nth(1).locator("input[name=rule_pattern]").fill("prod/changed/*");
   await page.waitForSelector("#rule-preview tr:has-text('prod/changed/*')");
   await rows.nth(1).locator("input[name=rule_pattern]").fill("prod/*");
@@ -552,12 +563,26 @@ await step("layout invariants hold", async () => {
 
   // People lists (users, team members) never overflow their card either.
   await page.goto(base + "/admin/users");
-  await page.waitForSelector("#user-list .event");
+  await page.waitForSelector("#user-list table.people-table");
   const people = await page.evaluate(() => {
     const list = document.querySelector("#user-list");
-    return list.scrollWidth - list.clientWidth;
+    const table = list.querySelector("table.people-table");
+    const headers = Array.from(table.querySelectorAll("thead th"));
+    const cells = Array.from(table.querySelectorAll("tbody tr:first-child td"));
+    const offsets = headers.map((h, i) => [Math.round(h.getBoundingClientRect().x), i < cells.length ? Math.round(cells[i].getBoundingClientRect().x) : null]);
+    return {
+      overflow: list.scrollWidth - list.clientWidth,
+      headerCount: headers.length,
+      cellCount: cells.length,
+      aligned: offsets.every(([h, c]) => c !== null && Math.abs(h - c) < 2),
+      offsets,
+    };
   });
-  if (people > 0) throw new Error(`the users list overflows by ${people}px`);
+  if (people.overflow > 0) throw new Error(`the users list overflows by ${people.overflow}px`);
+  if (people.headerCount !== 5 || people.cellCount !== 5) {
+    throw new Error(`the users table has ${people.headerCount} headers for ${people.cellCount} fields`);
+  }
+  if (!people.aligned) throw new Error(`the users table is not aligned with its header: ${JSON.stringify(people.offsets)}`);
 
   // Lists in the same family share one search control: same shape and width.
   for (const paths of [

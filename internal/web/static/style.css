@@ -437,22 +437,23 @@ td.mono-cell, .mono-cell {
 .audit-table .cell-action { max-width: 22ch; }
 .audit-table .cell-item { max-width: 34ch; }
 .audit-table .cell-reason { max-width: 52ch; }
-/* People rows (users, team members): the summary wraps; long names and
-   emails never clip and never widen the page. */
-.person-name { font-weight: 600; }
-.person-email { font-size: 0.9rem; color: var(--muted); word-break: break-all; }
-.person-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 1rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid var(--border);
+/* People table: the same table spec as every other table. The person cell
+   carries name over email; nothing is pushed to the far edge, so the columns
+   line up with their headers. */
+.people-table td { vertical-align: middle; }
+.people-table .person-cell { min-width: 12rem; max-width: 26rem; }
+.person-name { display: block; font-weight: 600; text-decoration: none; }
+.person-name:hover { text-decoration: underline; }
+.person-email {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.person-row:last-child { border-bottom: none; }
-.person-row form { margin-left: auto; }
-
-.people .event-outcome { margin-left: auto; }
+.people-table .unnamed { color: var(--muted); font-style: italic; font-weight: 400; }
+.people-table td.state-cell { white-space: nowrap; }
 .note-body { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; }
 
 /* The audit trail is a log of dropout rows: the summary line wraps freely
@@ -827,7 +828,16 @@ code {
 }
 .field-row button { padding: 0.1rem 0.55rem; font-size: 0.82rem; white-space: nowrap; }
 /* A row's remove action: a quiet × that needs no column of its own. */
-.remove-row { padding: 0.05rem 0.5rem; font-size: 1rem; line-height: 1.4; }
+.remove-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
 
 /* Messages */
 

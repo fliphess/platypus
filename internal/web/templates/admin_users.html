@@ -33,49 +33,52 @@
 
 {{/* The users table and its pager; swapped in place while searching. The
        wrapper with the id travels WITH the fragment, so the target still
-       exists after a swap. Each person is a dropout row: the summary shows
-       the facts you scan for, clicking it opens everything (department,
-       groups, actions) in full — no column ever mangles on long text. */}}
+       exists after a swap. One column per fact, so every value sits under its
+       header: person, status, access, role, actions. Everything else (department,
+       groups, last seen) lives on the person's page. */}}
 {{define "user-list"}}
 <div id="user-list">
 {{$data := .}}
 {{- if .Users}}
-<ul class="events people">
-  {{- range .Users}}
-  <li>
-    <details class="event person">
-      <summary class="event-head">
-        <span class="person-name">{{with .DisplayName}}{{.}}{{else}}<span class="unnamed">no name yet</span>{{end}}</span>
-        <span class="mono person-email">{{.Email}}</span>
-        <span class="event-outcome">{{if eq .Policies 0}}<span class="badge warn">no access</span>{{else if eq .Policies 1}}1 policy{{else}}{{.Policies}} policies{{end}}</span>
-        {{- if .IsAdmin}}<span class="badge admin">admin</span>{{end}}
-        {{- if .DisabledAt}}<span class="badge danger">disabled</span>{{end}}
-        {{- if .LockedAt}}<span class="badge danger">locked</span>{{end}}
-        {{- if not .FirstLoginAt}}<span class="badge">not logged in yet</span>{{end}}
-      </summary>
-      <div class="event-body">
-        <dl class="facts">
-          <dt>Email</dt><dd class="mono">{{.Email}}</dd>
-          <dt>Department</dt><dd>{{with .Department}}{{.}}{{else}}<span class="muted">not given</span>{{end}}</dd>
-          <dt>Policies</dt>
-          <dd>{{range index $data.PoliciesByUser .ID}}<span class="badge">{{.}}</span> {{else}}<span class="muted">none yet</span>{{end}}</dd>
-          <dt>Last seen</dt><dd>{{time .LastSeenAt}}</dd>
-          {{- if .IDPGroups}}<dt>Groups</dt><dd>{{range .IDPGroups}}<span class="badge">{{.}}</span> {{end}}</dd>{{end}}
-          <dt>Manage</dt>
-          <dd class="cell-actions">
-            <a class="button" href="/admin/users/{{.ID}}">View details</a>
-            <form hx-post="/admin/users/{{.ID}}/disabled" class="inline-form" method="post" action="/admin/users/{{.ID}}/disabled">
-              <input type="hidden" name="disabled" value="{{if .DisabledAt}}false{{else}}true{{end}}">
-              <input type="hidden" name="return" value="{{$data.ReturnTo}}">
-              <button type="submit"{{if not .DisabledAt}} class="danger"{{end}}>{{if .DisabledAt}}Enable account{{else}}Disable account{{end}}</button>
-            </form>
-          </dd>
-        </dl>
-      </div>
-    </details>
-  </li>
-  {{- end}}
-</ul>
+<table class="people-table">
+  <thead>
+    <tr>
+      <th>User</th>
+      <th>Status</th>
+      <th>Policies</th>
+      <th>Role</th>
+      <th class="row-actions"><span class="visually-hidden">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {{- range .Users}}
+    <tr>
+      <td class="person-cell">
+        <a class="person-name" href="/admin/users/{{.ID}}">{{with .DisplayName}}{{.}}{{else}}<span class="unnamed">no name yet</span>{{end}}</a>
+        <span class="person-email">{{.Email}}</span>
+      </td>
+      <td class="state-cell">
+        {{- if .DisabledAt}}<span class="badge danger">disabled</span>
+        {{- else if .LockedAt}}<span class="badge danger">locked</span>
+        {{- else if not .FirstLoginAt}}<span class="badge">not logged in yet</span>
+        {{- else}}<span class="badge ok">active</span>{{end}}
+      </td>
+      <td class="state-cell">{{if eq .Policies 0}}<span class="badge warn">no access</span>{{else if eq .Policies 1}}1 policy{{else}}{{.Policies}} policies{{end}}</td>
+      <td class="state-cell">{{if .IsAdmin}}<span class="badge admin">admin</span>{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="row-actions">
+        <span class="actions">
+          <a class="button small" href="/admin/users/{{.ID}}">Details</a>
+          <form class="inline-form" hx-post="/admin/users/{{.ID}}/disabled" method="post" action="/admin/users/{{.ID}}/disabled">
+            <input type="hidden" name="disabled" value="{{if .DisabledAt}}false{{else}}true{{end}}">
+            <input type="hidden" name="return" value="{{$data.ReturnTo}}">
+            <button type="submit" class="small{{if not .DisabledAt}} danger{{end}}">{{if .DisabledAt}}Enable{{else}}Disable{{end}}</button>
+          </form>
+        </span>
+      </td>
+    </tr>
+    {{- end}}
+  </tbody>
+</table>
 {{- else}}
 <p class="empty">No users found.</p>
 {{- end}}
