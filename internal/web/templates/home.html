@@ -1,0 +1,29 @@
+{{define "content"}}
+{{- with .Data}}
+<div class="welcome">
+  <img src="/static/logo.svg" alt="">
+  <div>
+    <h1>Hello, {{.Name}}</h1>
+    <p class="muted">Platypus manages SSM parameters and secrets for you, so you don't need access to AWS. What you can do depends on your policies.</p>
+    {{- if .HasAccess}}
+    <div class="stats">
+      {{- range .Kinds}}
+      <a class="stat" href="/{{kindPath .Kind}}">
+        <span class="stat-number">{{.Count}}</span>
+        <span class="stat-label">{{.Kind.Title}} you can see</span>
+        {{- if .CanCreate}}<span class="stat-hint">You can also create new {{.Kind.PluralNoun}}.</span>{{end}}
+      </a>
+      {{- end}}
+    </div>
+    {{- end}}
+  </div>
+</div>
+
+{{- if not .HasAccess}}
+<div class="alert info">
+  <p>You don't have access to any parameters or secrets yet. Ask an admin of your team for a policy, and say which ones you need.</p>
+  <p>Meanwhile, the <a href="/docs">docs</a> explain how platypus works{{if not $.Viewer.User.DisplayName}}, and you can add your name to your <a href="/me/profile">profile</a> so admins recognise you{{end}}.</p>
+</div>
+{{- end}}
+{{- end}}
+{{end}}

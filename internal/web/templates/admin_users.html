@@ -1,0 +1,93 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" "users" "Title" "Users")}}
+<div class="page-actions"><a class="button primary" href="/admin/users/new">New user</a></div>
+
+<div class="card">
+  <div class="toolbar-line">
+    <span class="toolbar-label">Show</span>
+    <nav class="segment-nav" aria-label="Which users to show">
+      <a href="/admin/users"{{if not .WithoutAccess}} class="active"{{end}}>All</a>
+      <a href="/admin/users?access=none"{{if .WithoutAccess}} class="active"{{end}}>Without access</a>
+    </nav>
+  </div>
+  <form class="search-bar" method="get" action="/admin/users"
+        hx-get="/admin/users" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
+        hx-target="#user-list" hx-select="#user-list" hx-swap="outerHTML" hx-push-url="true">
+    {{- if .WithoutAccess}}<input type="hidden" name="access" value="none">{{end}}
+    <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or email" aria-label="Search users">
+    <button type="submit">Search</button>
+  </form>
+  <p class="muted small">Accounts are created by logging in; everyone in an allowed email domain appears
+    here at their first login. Pick a person to give them access, or disable them if they shouldn't use
+    platypus at all.</p>
+  {{- if .WithoutAccess}}
+  <p class="muted small">No policy reaches these people, directly or through a team. Give them a policy or a
+    team, or disable them right here if they shouldn't use platypus.</p>
+  {{- end}}
+  {{template "user-list" .}}
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}
+
+{{/* The users table and its pager; swapped in place while searching. The
+       wrapper with the id travels WITH the fragment, so the target still
+       exists after a swap. Each person is a dropout row: the summary shows
+       the facts you scan for, clicking it opens everything (department,
+       groups, actions) in full — no column ever mangles on long text. */}}
+{{define "user-list"}}
+<div id="user-list">
+{{$data := .}}
+{{- if .Users}}
+<ul class="events people">
+  {{- range .Users}}
+  <li>
+    <details class="event person">
+      <summary class="event-head">
+        <span class="person-name">{{with .DisplayName}}{{.}}{{else}}<span class="unnamed">no name yet</span>{{end}}</span>
+        <span class="mono person-email">{{.Email}}</span>
+        <span class="event-outcome">{{if eq .Policies 0}}<span class="badge warn">no access</span>{{else if eq .Policies 1}}1 policy{{else}}{{.Policies}} policies{{end}}</span>
+        {{- if .IsAdmin}}<span class="badge admin">admin</span>{{end}}
+        {{- if .DisabledAt}}<span class="badge danger">disabled</span>{{end}}
+        {{- if .LockedAt}}<span class="badge danger">locked</span>{{end}}
+        {{- if not .FirstLoginAt}}<span class="badge">not logged in yet</span>{{end}}
+      </summary>
+      <div class="event-body">
+        <dl class="facts">
+          <dt>Email</dt><dd class="mono">{{.Email}}</dd>
+          <dt>Department</dt><dd>{{with .Department}}{{.}}{{else}}<span class="muted">not given</span>{{end}}</dd>
+          <dt>Policies</dt>
+          <dd>{{range index $data.PoliciesByUser .ID}}<span class="badge">{{.}}</span> {{else}}<span class="muted">none yet</span>{{end}}</dd>
+          <dt>Last seen</dt><dd>{{time .LastSeenAt}}</dd>
+          {{- if .IDPGroups}}<dt>Groups</dt><dd>{{range .IDPGroups}}<span class="badge">{{.}}</span> {{end}}</dd>{{end}}
+          <dt>Manage</dt>
+          <dd class="cell-actions">
+            <a class="button" href="/admin/users/{{.ID}}">View details</a>
+            <form hx-post="/admin/users/{{.ID}}/disabled" class="inline-form" method="post" action="/admin/users/{{.ID}}/disabled">
+              <input type="hidden" name="disabled" value="{{if .DisabledAt}}false{{else}}true{{end}}">
+              <input type="hidden" name="return" value="{{$data.ReturnTo}}">
+              <button type="submit"{{if not .DisabledAt}} class="danger"{{end}}>{{if .DisabledAt}}Enable account{{else}}Disable account{{end}}</button>
+            </form>
+          </dd>
+        </dl>
+      </div>
+    </details>
+  </li>
+  {{- end}}
+</ul>
+{{- else}}
+<p class="empty">No users found.</p>
+{{- end}}
+{{- if gt .LastPage 1}}
+<nav class="pager" aria-label="Pages">
+  {{- $query := ""}}
+  {{- if .Search}}{{$query = printf "&q=%s" .Search}}{{end}}
+  {{- if .WithoutAccess}}{{$query = printf "%s&access=none" $query}}{{end}}
+  <span class="muted small">Page {{.Page}} of {{.LastPage}} · {{.Total}} users</span>
+  {{- with .PrevPage}}<a class="button" href="/admin/users?page={{.}}{{$query}}">Previous</a>{{end}}
+  {{- with .NextPage}}<a class="button" href="/admin/users?page={{.}}{{$query}}">Next</a>{{end}}
+</nav>
+{{- end}}
+</div>
+{{end}}

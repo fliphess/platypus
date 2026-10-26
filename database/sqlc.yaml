@@ -1,0 +1,44 @@
+# Generates internal/db from the Flyway migrations and the queries.
+# Run: make generate
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations/updates
+    queries: queries
+    gen:
+      go:
+        package: db
+        out: ../internal/db
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: jsonb
+            go_type: encoding/json.RawMessage
+          - db_type: jsonb
+            nullable: true
+            go_type: encoding/json.RawMessage
+        rename:
+          idp_group: IDPGroup
+          idp_groups: IDPGroups
+          failed_mfa_attempts: FailedMFAAttempts
+          webauthn_handle: WebAuthnHandle
+          webauthn_ceremony: WebAuthnCeremony
+          webauthn_ceremony_until: WebAuthnCeremonyUntil
+          kms_key_id: KMSKeyID
+          ssm_type: SSMType
+          ssm_tier: SSMTier
+          ssm_data_type: SSMDataType
+          ssm_version: SSMVersion
+          secret_arn: SecretARN
+          csrf_token: CSRFToken
+          client_ip: ClientIP
+          request_id: RequestID
+          id_hash: IDHash

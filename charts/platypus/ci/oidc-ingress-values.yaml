@@ -1,0 +1,29 @@
+# Platypus logs people in itself (oidc mode) behind a plain Ingress: no login
+# proxy needed. Register https://platypus.example.com/auth/callback as the
+# redirect URL at the identity provider.
+config:
+  PLATYPUS_PUBLIC_URL: https://platypus.example.com
+  PLATYPUS_ALLOWED_EMAIL_DOMAINS: example.com
+  PLATYPUS_DB_HOST: postgres.example.com
+  PLATYPUS_AUTH_MODE: oidc
+  PLATYPUS_OIDC_ISSUER: https://example.okta.com
+  PLATYPUS_OIDC_CLIENT_ID: platypus
+  # Ask for credentials again after an idle logout.
+  PLATYPUS_OIDC_PROMPT: login
+  PLATYPUS_SESSION_IDLE_TIMEOUT: 15m
+  PLATYPUS_SESSION_MAX_AGE: 8h
+secret:
+  # Holds PLATYPUS_DB_USERNAME, PLATYPUS_DB_PASSWORD, PLATYPUS_ENCRYPTION_KEY
+  # and PLATYPUS_OIDC_CLIENT_SECRET.
+  existingSecret: platypus
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - platypus.example.com
+  tls:
+    - secretName: platypus-tls
+      hosts:
+        - platypus.example.com
+networkPolicy:
+  gatewayNamespace: ingress-nginx

@@ -1,0 +1,28 @@
+Admin guide
+
+Admin mode
+Click "Admin mode" in the header and confirm with your authenticator app, a passkey (where PLATYPUS_PASSKEYS_ENABLED allows them) or a recovery code. Admin mode lasts a limited time (PLATYPUS_ADMIN_MODE_DURATION) or until you leave it. Five failed attempts in a row lock your account; another admin can unlock it.
+
+Second factors
+Set them up under /me/security. Once you have one, adding or removing factors needs admin mode, so a stolen login session alone can't add an attacker's authenticator. Keep your recovery codes in your password manager.
+
+Users
+Everyone in the allowed email domains (PLATYPUS_ALLOWED_EMAIL_DOMAINS) can log in; new users have no access until they get a policy. Add people ahead of their first login under Users, or by email on a team's page. Disable an account to shut someone out at once; unlock accounts that were locked after failed attempts. The last active admin can't be removed or disabled.
+
+Teams
+A team is a group of users sharing policies. Add members on the team's page: pick from the list of everyone with an account, or type to narrow it by name or username. People who haven't logged in yet aren't on the list; they join once they have logged in for the first time. Addresses are never typed in full: a small typo in a typed address could hand access to the wrong person.
+
+Policies
+Build policies from rules (see "Access and policies"). The editor shows how many items each rule matches, so you can spot a pattern that is too broad or matches nothing. Four policies were created at setup and are assigned to nobody: Read-only all, SSM editor all, Secrets editor all and Full access.
+
+Block all access
+The block button on the admin overview shuts out everyone except admins at once and stops all reveals and changes, for admins too. Users see a notice with the contact address from PLATYPUS_BLOCK_CONTACT_EMAIL. Admins keep the admin pages, and unblock platypus there.
+
+Sync
+The worker refreshes the list of parameters and secrets from AWS every PLATYPUS_SYNC_INTERVAL and re-checks platypus's own access to every item once per PLATYPUS_ACCESS_RECHECK_INTERVAL. "Sync now" asks for a sync within a minute, optionally with a full access check, for example after changing platypus's IAM role.
+
+Audit trail
+Every action is recorded: who, what, which item, allowed or denied, when, from where. Filter it, page through it, or download it as CSV. The audit trail is read-only. "Delete old events" removes events older than PLATYPUS_AUDIT_RETENTION_DAYS; platypus never deletes events by itself. Every event also goes to the logs (log_type "audit"); send those to a log store that keeps them.
+
+Notes
+Notes stay when their item disappears from AWS. The admin overview links to these orphaned notes.

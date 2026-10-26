@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platypus.fullname" . }}-web
+  labels:
+    {{- include "platypus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "platypus.selectorLabels" (dict "root" . "component" "web") | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "platypus.labels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+        {{- with .Values.web.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Restart the pods when the settings change. A Secret you manage
+        # yourself (existingSecret, externalSecret) is yours to roll out.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.secret.create }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.web.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "platypus.podSpec" (dict "root" . "component" "web" "command" "web" "values" .Values.web) | nindent 6 }}

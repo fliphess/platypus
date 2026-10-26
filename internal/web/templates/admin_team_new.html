@@ -1,0 +1,27 @@
+{{define "content"}}
+{{template "admin-open" (dict "Section" "teams" "Title" "New team")}}
+<nav class="breadcrumbs"><a href="/admin/teams">← Teams</a></nav>
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<form class="card" method="post" action="/admin/teams" hx-post="/admin/teams" hx-target="find .messages">
+  {{template "csrf" $.Viewer.Session.CSRFToken}}
+  <div class="form-stack">
+    <div class="field">
+      <label for="name">Name</label>
+      <input id="name" type="text" name="name" maxlength="100" required autocomplete="off" data-1password-ignore>
+    </div>
+    <div class="field">
+      <label for="description">Description <span class="hint">optional</span></label>
+      <input id="description" type="text" name="description" maxlength="500" autocomplete="off" data-1password-ignore>
+    </div>
+  </div>
+  <label class="checkbox toggle-link"><input type="checkbox" id="new-link-group" data-toggles="#new-idp-group"> Link to an identity-provider group</label>
+  <div class="field toggle-field" id="new-idp-group">
+    <label for="new-idp-group-input">Group name <span class="hint">members then come from the group at each login</span></label>
+    <input id="new-idp-group-input" type="text" name="idp_group" maxlength="200" autocomplete="off" data-1password-ignore>
+  </div>
+  <div class="messages"></div>
+  <div class="actions"><button class="primary" type="submit">Create team</button></div>
+</form>
+{{template "admin-close"}}
+{{end}}

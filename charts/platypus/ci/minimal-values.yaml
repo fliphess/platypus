@@ -1,0 +1,14 @@
+# The least you need: settings, a secret and who may reach platypus.
+config:
+  PLATYPUS_PUBLIC_URL: https://platypus.example.com
+  PLATYPUS_ALLOWED_EMAIL_DOMAINS: example.com
+  PLATYPUS_DB_HOST: postgres.example.com
+  PLATYPUS_AUTH_MODE: header
+secret:
+  create: true
+  values:
+    PLATYPUS_DB_USERNAME: platypus_rw
+    PLATYPUS_DB_PASSWORD: change-me
+    PLATYPUS_ENCRYPTION_KEY: cGxhdHlwdXMtY2hhcnQtZXhhbXBsZS1ub3QtcmVhbCE=
+networkPolicy:
+  gatewayNamespace: ingress

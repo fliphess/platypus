@@ -1,0 +1,46 @@
+# EKS with IRSA, kgateway with oauth2-proxy as ext-auth (header mode),
+# secrets from SSM through External Secrets.
+config:
+  PLATYPUS_ENVIRONMENT: prd
+  PLATYPUS_AUTH_MODE: header
+  PLATYPUS_PUBLIC_URL: https://platypus.example.com
+  PLATYPUS_ALLOWED_EMAIL_DOMAINS: example.com
+  PLATYPUS_DB_HOST: platypus.cluster-abc.eu-west-1.rds.amazonaws.com
+  PLATYPUS_BLOCK_CONTACT_EMAIL: platform@example.com
+  AWS_REGION: eu-west-1
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/platypus
+externalSecret:
+  enabled: true
+  secretStoreRef:
+    name: aws-parameter-store
+  data:
+    - secretKey: PLATYPUS_DB_USERNAME
+      remoteRef:
+        key: /platypus/db-username
+    - secretKey: PLATYPUS_DB_PASSWORD
+      remoteRef:
+        key: /platypus/db-password
+    - secretKey: PLATYPUS_ENCRYPTION_KEY
+      remoteRef:
+        key: /platypus/encryption-key
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: internal-gateway
+      namespace: internal-gateway
+  hostnames:
+    - platypus.example.com
+kgatewayExtAuth:
+  enabled: true
+  extensionRef:
+    name: internal-gateway-auth
+    namespace: internal-gateway
+networkPolicy:
+  gatewayNamespace: internal-gateway
+  postgresTo:
+    - ipBlock:
+        cidr: 10.20.0.0/16
+databaseCA:
+  configMap: rds-ca-bundle

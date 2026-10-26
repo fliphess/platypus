@@ -1,0 +1,125 @@
+{{define "content"}}
+{{- with .Data}}{{$t := .Detail.Team}}
+{{template "admin-open" (dict "Section" "teams" "Title" $t.Name)}}
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<div class="card">
+  <h2>Team</h2>
+  <form hx-post="/admin/teams/{{$t.ID}}" hx-target="find .messages" method="post" action="/admin/teams/{{$t.ID}}">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <div class="form-stack">
+      <div class="field">
+        <label for="name">Name</label>
+        <input id="name" type="text" name="name" maxlength="100" value="{{$t.Name}}" required autocomplete="off" data-1password-ignore>
+      </div>
+      <div class="field">
+        <label for="description">Description <span class="hint">optional</span></label>
+        <input id="description" type="text" name="description" maxlength="500" value="{{$t.Description}}" autocomplete="off" data-1password-ignore>
+      </div>
+    </div>
+    {{- /* The group field only shows when the link is wanted; a linked team
+           opens with it visible. */}}
+    <label class="checkbox toggle-link"><input type="checkbox" id="link-group" data-toggles="#idp-group"{{if $t.IDPGroup}} checked{{end}}> Link to an identity-provider group</label>
+    <div class="field toggle-field" id="idp-group">
+      <label for="idp-group-input">Group name <span class="hint">optional; members then come from the group</span></label>
+      <input id="idp-group-input" type="text" name="idp_group" maxlength="200" value="{{with $t.IDPGroup}}{{.}}{{end}}"
+             autocomplete="off" data-1password-ignore>
+      <p class="hint">With a group, members come from it at each login and can't be changed here.
+        Whoever manages the group decides who is on the team.</p>
+    </div>
+    <div class="messages"></div>
+    <div class="actions"><button type="submit">Save</button></div>
+  </form>
+<h3>Members</h3>
+  {{- with $t.IDPGroup}}
+  <div class="alert info">Members come from the identity-provider group <strong>{{.}}</strong>.
+    Add or remove them in the group; platypus picks the change up at each login.</div>
+  {{- end}}
+  {{- if .Detail.Members}}
+  <ul class="events people">
+    {{- range .Detail.Members}}
+    <li>
+      <details class="event person">
+        <summary class="event-head">
+          <span class="person-name">{{.Label}}</span>
+          <span class="mono person-email">{{.Email}}</span>
+        </summary>
+        <div class="event-body">
+          <dl class="facts">
+            <dt>Department</dt><dd>{{with .Department}}{{.}}{{else}}<span class="muted">not given</span>{{end}}</dd>
+            <dt>Manage</dt>
+            <dd class="cell-actions">
+              <a class="button" href="/admin/users/{{.ID}}">View details</a>
+              {{- if not $t.IDPGroup}}
+              <form hx-post="/admin/teams/{{$t.ID}}/members/remove" class="inline-form" method="post" action="/admin/teams/{{$t.ID}}/members/remove">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+                <input type="hidden" name="user_id" value="{{.ID}}">
+                <button type="submit" class="danger">Remove from this team</button>
+              </form>
+              {{- end}}
+            </dd>
+          </dl>
+        </div>
+      </details>
+    </li>
+    {{- end}}
+  </ul>
+  {{- else}}
+  <p class="empty">{{if $t.IDPGroup}}Nobody from the group has logged in yet.{{else}}No members yet.{{end}}</p>
+  {{- end}}
+  {{- if not $t.IDPGroup}}
+  <label for="member-search">Add people <span class="hint">pick from the list, or type to narrow it</span></label>
+  <input id="member-search" type="search" name="q" autocomplete="off" placeholder="Who can join?"
+         hx-get="/admin/teams/{{$t.ID}}/candidates" hx-trigger="load, input changed delay:250ms, search" hx-target="#candidates">
+  <div id="member-messages" class="messages"></div>
+  <div id="candidates"></div>
+  {{- end}}
+</div>
+
+<div class="card">
+  <h2>Policies</h2>
+  <form hx-post="/admin/teams/{{$t.ID}}/policies" hx-target="find .messages" method="post" action="/admin/teams/{{$t.ID}}/policies">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    {{- range .AllPolicies}}{{$policy := .}}
+    <label class="checkbox"><input type="checkbox" name="policy_id" value="{{.ID}}"{{range $.Data.Detail.Policies}}{{if eq .ID $policy.ID}} checked{{end}}{{end}}> {{.Name}}</label>
+    {{- else}}
+    <p class="muted">No policies yet. <a href="/admin/policies/new">Create one</a>.</p>
+    {{- end}}
+    <div class="messages"></div>
+    <div class="actions"><button type="submit">Save policies</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Delete team</h2>
+  <p class="muted">Members lose the policies they had through this team.</p>
+  <form id="delete-team" hx-post="/admin/teams/{{$t.ID}}/delete/preview" hx-target="#dialog-content" method="post" action="/admin/teams/{{$t.ID}}/delete/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="danger" type="submit">Delete this team</button>
+  </form>
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}
+
+{{/* People who can join the team. Data: TeamID, Users, Capped. */}}
+{{define "candidates"}}
+{{- if .Users}}
+<ul class="candidates">
+  {{- range .Users}}
+  <li>
+    <div><strong>{{.Label}}</strong>{{if .DisplayName}} <span class="muted small">{{.Email}}</span>{{end}}{{with .Department}} <span class="badge">{{.}}</span>{{end}}</div>
+    <form hx-post="/admin/teams/{{$.TeamID}}/members" hx-target="#member-messages" class="inline-form" method="post" action="/admin/teams/{{$.TeamID}}/members">
+      <input type="hidden" name="user_id" value="{{.ID}}">
+      <button type="submit">Add</button>
+    </form>
+  </li>
+  {{- end}}
+</ul>
+{{- if .Capped}}
+<p class="muted small">Showing {{len .Users}}; type to narrow the list.</p>
+{{- end}}
+{{- else}}
+<p class="muted small">No one else has an account yet. People appear once they have logged in.</p>
+{{- end}}
+{{end}}

@@ -1,0 +1,88 @@
+{{define "content"}}
+{{- with .Data}}
+<h1>Second factors</h1>
+<p class="muted">Admin mode needs a second factor: an authenticator app (TOTP){{if .Passkeys}} or a passkey{{end}}. Recovery codes are for when you lose it.</p>
+{{- if not .CanChange}}
+<div class="alert info">Switch on <a href="/admin/elevate">admin mode</a> to add or remove factors.</div>
+{{- end}}
+
+<div class="card">
+  <h2>Authenticator app</h2>
+  <div class="messages"></div>
+  {{- if .Factors.TOTP}}
+  <p><span class="badge ok">set up</span></p>
+  {{- if .CanChange}}
+  <form method="post" action="/me/security/totp/remove">
+    {{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="danger" type="submit">Remove authenticator app</button>
+  </form>
+  {{- end}}
+  {{- else if .CanChange}}
+  <div id="totp">
+    <button hx-post="/me/security/totp" hx-target="#totp">Set up an authenticator app</button>
+  </div>
+  {{- else}}
+  <p class="muted">Not set up.</p>
+  {{- end}}
+</div>
+
+{{- if .Passkeys}}
+<div class="card">
+  <h2>Passkeys</h2>
+  {{- with .Factors.Passkeys}}
+  <table>
+    <thead><tr><th>Name</th><th>Added</th><th>Last used</th><th></th></tr></thead>
+    <tbody>
+    {{- range .}}
+      <tr>
+        <td>{{.Name}}</td><td>{{time .CreatedAt}}</td><td>{{time .LastUsedAt}}</td>
+        <td>{{if $.Data.CanChange}}
+          <form method="post" action="/me/security/passkeys/remove" class="inline-form">
+            {{template "csrf" $.Viewer.Session.CSRFToken}}
+            <input type="hidden" name="passkey_id" value="{{.ID}}">
+            <button type="submit">Remove</button>
+          </form>{{end}}</td>
+      </tr>
+    {{- end}}
+    </tbody>
+  </table>
+  {{- else}}
+  <p class="muted">No passkeys yet.</p>
+  {{- end}}
+  {{- if .CanChange}}
+  <label for="passkey-name">Name for a new passkey <span class="hint">for example "MacBook Touch ID"</span></label>
+  <input id="passkey-name" type="text" maxlength="60">
+  <p id="passkey-messages" class="alert error" hidden></p>
+  <div class="actions">
+    <button type="button" data-passkey="register" data-messages="passkey-messages"
+            data-begin="/me/security/passkeys/begin" data-finish="/me/security/passkeys/finish">Add a passkey</button>
+  </div>
+  {{- end}}
+</div>
+{{- end}}
+
+<div class="card">
+  <h2>Recovery codes</h2>
+  <p>{{.Factors.RecoveryCodesLeft}} unused recovery codes.</p>
+  {{- if and .CanChange .Factors.Any}}
+  <form method="post" action="/me/security/recovery-codes">
+    {{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button type="submit">Create new recovery codes</button>
+    <span class="muted small">This replaces all your current codes.</span>
+  </form>
+  {{- end}}
+</div>
+{{- end}}
+{{end}}
+
+{{define "totp-setup"}}
+<p>Scan this code with your authenticator app, or type the key by hand. Then enter the six-digit code it shows.</p>
+<img class="qr" src="{{.QRCode}}" alt="QR code for your authenticator app">
+<p>Key: <code>{{.Secret}}</code></p>
+<form hx-post="/me/security/totp/confirm" hx-target="find .messages" method="post" action="/me/security/totp/confirm">
+  <label for="totp-code">Code from the app</label>
+  <input id="totp-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+  <div class="messages"></div>
+  <div class="actions"><button class="primary" type="submit">Confirm</button></div>
+</form>
+{{end}}

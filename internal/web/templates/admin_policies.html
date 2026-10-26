@@ -1,0 +1,37 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" "policies" "Title" "Policies")}}
+<div class="page-actions"><a class="button primary" href="/admin/policies/new">New policy</a></div>
+
+<div class="card">
+  <form class="search-bar" method="get" action="/admin/policies"
+        hx-get="/admin/policies" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
+        hx-target="#policy-list" hx-select="#policy-list" hx-swap="outerHTML" hx-push-url="true">
+    <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or description" aria-label="Search policies">
+    <button type="submit">Search</button>
+  </form>
+  {{template "policy-list" .}}
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}
+
+{{/* The policies table; swapped in place while searching. */}}
+{{define "policy-list"}}
+<div id="policy-list">
+  <table>
+    <thead><tr><th>Policy</th><th>Rules</th><th>Users</th><th>Teams</th><th>Description</th></tr></thead>
+    <tbody>
+    {{- range .Policies}}
+      <tr>
+        <td><a class="cell-name" href="/admin/policies/{{.ID}}" title="{{.Name}}">{{.Name}}</a></td>
+        <td class="nowrap">{{.RuleCount}}</td><td class="nowrap">{{.UserCount}}</td><td class="nowrap">{{.TeamCount}}</td>
+        <td class="description" title="{{.Description}}">{{.Description}}</td>
+      </tr>
+    {{- else}}
+      <tr><td colspan="5" class="muted">{{if $.Search}}No policies match {{printf "%q" $.Search}}.{{else}}No policies yet.{{end}}</td></tr>
+    {{- end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

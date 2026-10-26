@@ -1,0 +1,43 @@
+Working with values
+
+Revealing
+Click Reveal on an item to see its current value, or Reveal next to a version to see an older one. You need the reveal permission. The value hides itself again after a few seconds (PLATYPUS_REVEAL_HIDE_AFTER); click "Hide now" to hide it at once. There is no copy button on purpose: select the text if you need it.
+
+Creating
+Click New parameter or New secret. You can only create names that match a pattern you have the create permission on; the form lists them. Creating never overwrites: if the name exists, platypus refuses.
+
+For SSM parameters you choose the type (SecureString for anything secret, String, or StringList) and the tier (Standard up to 4 KB, Advanced up to 8 KB, which AWS charges for).
+
+Platypus tags everything it creates with Terraform=false, ManagedBy=platypus, CreatedBy (your email) and, when you pick one, Team.
+
+Editing
+Click Edit on an item. The value field starts empty: type the complete new value, or leave it empty to keep the current one. If you may reveal the item, "Load current value" puts the current value in the editor so you can change part of it; that counts as a reveal.
+
+The value editor has three modes:
+Text: the value as plain text.
+JSON: the value as JSON text; platypus checks that it is valid when you save.
+JSON fields: a flat JSON object as one row per key, so you can change one key without touching the others.
+
+Before anything is saved, platypus shows what is about to change: whether the value is replaced, which JSON keys are added, changed or removed (if you may reveal the item), and other settings, together with the item's note. Nothing happens until you click Continue.
+
+If someone else changed the item while you were editing, platypus refuses your change. Reload the page and edit the latest version.
+
+Changing the description of an SSM parameter creates a new version with the same value: that is how SSM works.
+
+Rolling back
+Every version is listed on the item's page. Roll back makes an earlier version current again. For secrets this moves the AWSCURRENT label; for parameters platypus writes the old value as a new version.
+
+Managed by Terraform
+Items with a Terraform tag (PLATYPUS_TERRAFORM_TAGS, by default Terraform=true) are managed in Terraform. Platypus shows them as such and doesn't change their value or description: Terraform would undo it. Change them in Terraform. You can still add a note.
+
+Notes
+Every item can have a note, for example "DO NOT CHANGE: used by the payment provider". Notes live only in platypus, never in AWS, and are shown to everyone who can see the item. Notes are plain text and are not the place for secrets.
+
+Not supported
+Deleting: an AWS admin does that with the AWS CLI.
+Binary secrets: platypus shows them but can't reveal or change them. Store binary data as base64 text instead.
+Changing tags: tags are managed outside platypus.
+
+Deleted secrets
+
+A secret that is scheduled for deletion in AWS stays visible in platypus with a "deleted" label, so nobody wonders where it went. It can't be read or changed until it is restored. With edit permission, its page offers "Restore this secret": that cancels the deletion in AWS and the value comes back as it was. Platypus never deletes anything itself; restoring only undoes a deletion somebody else scheduled.

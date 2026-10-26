@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "platypus.fullname" . }}
+  labels:
+    {{- include "platypus.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "platypus.selectorLabels" (dict "root" . "component" "web") | nindent 4 }}
+  ports:
+    # Only the web port: the health port stays for the kubelet.
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

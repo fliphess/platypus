@@ -1,0 +1,167 @@
+# Platypus runs as two Deployments from the same image:
+#   web     the user interface (behind your gateway and login proxy)
+#   worker  background jobs: sync with AWS, the bootstrap token, housekeeping
+# Both serve health checks on their own port (8081), which is never exposed
+# through the Service.
+
+image:
+  repository: ghcr.io/fliphess/platypus
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Non-secret settings, as environment variables. Every variable is listed in
+# internal/docs/pages/90-configuration.txt. These have no default:
+config:
+  PLATYPUS_ENVIRONMENT: prd
+  PLATYPUS_PUBLIC_URL: ""
+  PLATYPUS_ALLOWED_EMAIL_DOMAINS: ""
+  # header, signed-header or oidc; see docs/60-security.txt and the examples in ci/.
+  PLATYPUS_AUTH_MODE: ""
+  # Database location; the credentials go in the secret below.
+  PLATYPUS_DB_HOST: ""
+  PLATYPUS_DB_NAME: platypus
+
+# The certificate authorities that sign your database server's certificate,
+# from a ConfigMap you create. Needed for the default sslmode verify-full when
+# the database's certificate isn't signed by a public authority, as with RDS:
+# put https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem in it.
+databaseCA:
+  configMap: ""
+  key: ca.pem
+
+# Secret settings: at least PLATYPUS_DB_USERNAME, PLATYPUS_DB_PASSWORD and
+# PLATYPUS_ENCRYPTION_KEY, plus PLATYPUS_OIDC_CLIENT_SECRET in oidc mode.
+# Pick one way to provide them.
+secret:
+  # 1. A Secret you manage yourself (recommended).
+  existingSecret: ""
+  # 2. A Secret created by this chart. Its values end up in the Helm release;
+  #    fine for trying platypus out, not for production.
+  create: false
+  values: {}
+    # PLATYPUS_DB_USERNAME: platypus_rw
+    # PLATYPUS_DB_PASSWORD: ""
+    # PLATYPUS_ENCRYPTION_KEY: ""   # openssl rand -base64 32
+
+# 3. An ExternalSecret (external-secrets.io) that fills the Secret from your
+#    secret store, for example SSM Parameter Store.
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: ""
+    kind: ClusterSecretStore
+  # - secretKey: PLATYPUS_DB_PASSWORD
+  #   remoteRef:
+  #     key: /platypus/db-password
+  data: []
+
+serviceAccount:
+  create: true
+  name: ""
+  # For IRSA: eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/<role>
+  annotations: {}
+
+web:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+worker:
+  # One worker is enough. Advisory locks in Postgres keep a second one (for
+  # example during a rollout) from running a job at the same time.
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10010
+  runAsGroup: 10010
+  fsGroup: 10010
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Gateway API route (for example kgateway, Envoy Gateway, Istio).
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs: []
+    # - name: internal-gateway
+    #   namespace: internal-gateway
+  hostnames: []
+
+# Classic Ingress, if you don't use the Gateway API.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+    # - platypus.example.com
+  tls: []
+
+# header mode with kgateway: creates the TrafficPolicy that sends every
+# request on the route past the gateway's ext-auth extension (for example
+# oauth2-proxy) first. The gateway must also strip the identity header from
+# incoming requests; see docs/deployment-checklist.md.
+kgatewayExtAuth:
+  enabled: false
+  extensionRef:
+    name: ""
+    namespace: ""
+
+# Only the gateway may reach the web pods; both deployments may only reach
+# DNS, Postgres and HTTPS (the AWS APIs).
+networkPolicy:
+  enabled: true
+  # Who may reach the web pods, as NetworkPolicy peers. Leave it empty and set
+  # gatewayNamespace for the common case.
+  gatewayNamespace: ""
+  ingressFrom: []
+  dnsNamespace: kube-system
+  postgresPort: 5432
+  # Where platypus may connect to Postgres and over HTTPS (AWS APIs, and the
+  # identity provider in signed-header and oidc mode), as NetworkPolicy peers.
+  # Empty means any destination on that port. Narrow them if you can, for
+  # example postgresTo: [{ipBlock: {cidr: 10.0.0.0/16}}].
+  postgresTo: []
+  httpsTo: []
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1

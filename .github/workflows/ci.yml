@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only by default; no job needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Go tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+      ministack:
+        image: ministackorg/ministack:1.5.32
+        env:
+          SERVICES: ssm,secretsmanager
+          MINISTACK_REGION: eu-west-1
+        ports: ["4566:4566"]
+    env:
+      PLATYPUS_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PLATYPUS_TEST_AWS_ENDPOINT: http://localhost:4566
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test -race -count=1 -coverprofile=cover.out ./...
+      - name: Coverage
+        run: go tool cover -func=cover.out | tail -1
+
+  lint:
+    name: Lint and vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+      - name: govulncheck
+        run: make vulncheck
+      - name: Generated code (sqlc) and docs are up to date
+        run: make generate-check
+      - name: Vendored htmx matches its checksum
+        run: make vendored-check
+      - name: SQL queries are linted (sqlfluff)
+        run: make sqlfluff
+
+  chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - name: Lint and validate every example
+        run: make helm-lint
+
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: A fresh stack reaches the bootstrap page, with migrations and roles as in production
+        run: make smoke
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Browser tests against a fresh docker-compose stack
+        run: ./e2e/run.sh

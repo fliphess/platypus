@@ -1,0 +1,9 @@
+{
+  "name": "platypus-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests for platypus; run them with `make e2e`.",
+  "dependencies": {
+    "playwright": "1.56.0"
+  }
+}

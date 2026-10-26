@@ -1,0 +1,157 @@
+{{define "content"}}
+{{- with .Data}}{{$d := .Detail}}{{$kind := kindPath $d.Kind}}
+<nav class="breadcrumbs"><a href="/{{$kind}}">{{$d.Kind.Title}}</a></nav>
+<div class="page-head">
+  <h1 class="mono">{{$d.Name}}</h1>
+  <div class="actions">
+    {{- if $d.TerraformManaged}}
+    {{template "denied-button" (dict "Label" "Edit" "Reason" $d.TerraformReason)}}
+    {{- else if $d.Permissions.Edit}}
+    <a class="button" href="/{{$kind}}/edit?name={{$d.Name}}">Edit</a>
+    {{- else}}
+    {{template "denied-button" (dict "Label" "Edit" "Reason" (denial $d.Denials "edit"))}}
+    {{- end}}
+  </div>
+</div>
+
+{{- with $d.Note}}
+<div class="alert note"><strong>Note</strong> <span class="muted small">by {{.UpdatedBy}}, {{time .UpdatedAt}}</span>
+{{.Body}}</div>
+{{- end}}
+{{- if $d.TerraformManaged}}
+<div class="alert terraform"><strong>Managed by Terraform.</strong> Change the value and description in Terraform: a change made here would be undone. You can still add a note.</div>
+{{- end}}
+{{- if $d.DeletedAt}}
+<div class="alert warning"><strong>Scheduled for deletion</strong> ({{time $d.DeletedAt}}).
+  It can't be read or changed until it is restored. Restoring cancels the deletion; the value itself is kept.
+  {{- if $d.Permissions.Edit}}
+  <form hx-post="/secrets/undelete" class="inline-form" method="post" action="/secrets/undelete">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <input type="hidden" name="name" value="{{$d.Name}}">
+    <button class="primary" type="submit">Restore this secret</button>
+  </form>
+  {{- end}}
+</div>
+{{- end}}
+{{- if $d.RotationEnabled}}
+<div class="alert warning">Rotation is enabled for this secret: AWS replaces its value on a schedule.</div>
+{{- end}}
+
+<div class="card">
+  <h2>Value</h2>
+  <div id="value">
+    {{- if $d.DeletedAt}}
+    <p class="value-hidden">••••••••</p>
+    <p class="muted small">Scheduled for deletion: restore the secret to read it.</p>
+    {{- else if $d.Permissions.Reveal}}
+    <form hx-post="/{{$kind}}/reveal" hx-target="#value" method="post" action="/{{$kind}}/reveal">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+      <input type="hidden" name="name" value="{{$d.Name}}">
+      <span class="value-hidden">••••••••</span>
+      <button type="submit">Reveal</button>
+    </form>
+    {{- else}}
+    <p class="value-hidden">••••••••</p>
+    <p class="muted small">{{denial $d.Denials "reveal"}}</p>
+    {{- end}}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Details</h2>
+  <dl class="facts">
+    <dt>Description</dt><dd>{{with $d.Description}}{{.}}{{else}}<span class="muted">none</span>{{end}}</dd>
+    {{- if eq $d.Kind "ssm"}}
+    <dt>Type</dt><dd>{{$d.SSMType}}</dd>
+    <dt>Tier</dt><dd>{{$d.SSMTier}}</dd>
+    <dt>Data type</dt><dd>{{$d.SSMDataType}}</dd>
+    <dt>Version</dt><dd>{{$d.SSMVersion}}</dd>
+    {{- else}}
+    <dt>ARN</dt><dd class="mono small">{{$d.SecretARN}}</dd>
+    <dt>Rotation</dt><dd>{{if $d.RotationEnabled}}enabled{{else}}off{{end}}</dd>
+    {{- end}}
+    <dt>Last changed</dt><dd>{{time $d.LastModified}}</dd>
+    <dt>KMS key</dt><dd class="mono small">{{with $d.KMSKeyID}}{{.}}{{else}}AWS managed key{{end}}</dd>
+    <dt>Tags</dt>
+    <dd>{{range $key, $value := $d.Tags}}<span class="badge">{{$key}}={{$value}}</span> {{else}}<span class="muted">none</span>{{end}}</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Note</h2>
+  {{- if $d.Permissions.Edit}}
+  <form hx-post="/{{$kind}}/note" hx-target="find .messages" method="post" action="/{{$kind}}/note">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <input type="hidden" name="name" value="{{$d.Name}}">
+    <label for="note">Visible to everyone who can see this item. Plain text only; never put values here.</label>
+    <textarea id="note" name="note" maxlength="2000" rows="3">{{with $d.Note}}{{.Body}}{{end}}</textarea>
+    <div class="messages"></div>
+    <div class="actions"><button type="submit">Save note</button></div>
+  </form>
+  {{- else}}
+  <p class="muted small">{{with $d.Note}}See the note above.{{else}}No note.{{end}} {{denial $d.Denials "edit"}}</p>
+  {{- end}}
+</div>
+
+<div class="card">
+  <h2>Versions</h2>
+  <div class="messages"></div>
+  <table>
+    <thead><tr><th>Version</th><th>Created</th><th>Labels</th><th></th></tr></thead>
+    <tbody>
+    {{- range .Versions}}
+      <tr>
+        <td class="mono">{{.Label}}{{if .Current}} <span class="badge ok">current</span>{{end}}</td>
+        <td class="when">{{time .Created}}{{with .CreatedBy}}<div class="cell-sub" title="{{.}}">{{.}}</div>{{end}}</td>
+        <td>{{join .Stages ", "}}</td>
+        <td class="row-actions">
+          <div class="actions">
+          {{- if $d.Permissions.Reveal}}
+            <form hx-post="/{{$kind}}/reveal" hx-target="#version-{{.ID}}" class="inline-form" method="post" action="/{{$kind}}/reveal">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+              <input type="hidden" name="name" value="{{$d.Name}}">
+              <input type="hidden" name="version" value="{{.ID}}">
+              <button type="submit">Reveal</button>
+            </form>
+          {{- end}}
+          {{- if and $d.Permissions.Edit (not .Current) (not $d.TerraformManaged)}}
+            <form id="rollback-{{.ID}}" hx-post="/{{$kind}}/rollback/preview" hx-target="#dialog-content" class="inline-form" method="post" action="/{{$kind}}/rollback/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+              <input type="hidden" name="name" value="{{$d.Name}}">
+              <input type="hidden" name="version" value="{{.ID}}">
+              <input type="hidden" name="expect_version" value="{{$d.Version}}">
+              <button type="submit">Roll back to this</button>
+            </form>
+          {{- end}}
+          </div>
+          <div id="version-{{.ID}}"></div>
+        </td>
+      </tr>
+    {{- end}}
+    </tbody>
+  </table>
+</div>
+{{- end}}
+{{end}}
+
+{{/* A binary secret: no value, and a way to learn why and what to do. */}}
+{{define "binary-refusal"}}
+<p class="alert error">This secret holds binary data, which platypus doesn't support.
+  <a href="/docs/binary-secrets">Why, and how to change it</a>.</p>
+{{end}}
+
+{{define "revealed"}}
+<div class="value-box" data-hide-after="{{.HideAfter}}">
+  <pre>{{.Value}}</pre>
+  <p class="muted small">Hidden again in {{.HideAfter}} seconds. <button type="button" class="quiet" data-hide>Hide now</button></p>
+  {{- /* The reveal control comes back after hiding: no refresh needed. */}}
+  <template data-reveal-restore>
+    <form hx-post="/{{kindPath .Kind}}/reveal" hx-target="#{{.Target}}" class="inline-form" method="post" action="/{{kindPath .Kind}}/reveal">
+      <input type="hidden" name="name" value="{{.Name}}">
+      {{- with .Version}}<input type="hidden" name="version" value="{{.}}">{{end}}
+      <span class="value-hidden">••••••••</span>
+      <button type="submit">Reveal</button>
+    </form>
+  </template>
+</div>
+{{end}}

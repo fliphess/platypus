@@ -1,0 +1,17 @@
+{{define "content"}}
+{{template "admin-open" (dict "Section" "users" "Title" "New user")}}
+<nav class="breadcrumbs"><a href="/admin/users">← Users</a></nav>
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<form class="card" method="post" action="/admin/users" hx-post="/admin/users" hx-target="find .messages">
+  {{template "csrf" $.Viewer.Session.CSRFToken}}
+  <h2>Account</h2>
+  <label for="email">Email address</label>
+  <input id="email" type="email" name="email" required autocomplete="off" data-1password-ignore>
+  <p class="field-hint">The person gets this account at their first login; the address has to match
+    exactly. Put them in teams and policies now, or leave that until they appear in the list.</p>
+  <div class="messages"></div>
+  <div class="actions"><button class="primary" type="submit">Create account</button></div>
+</form>
+{{template "admin-close"}}
+{{end}}

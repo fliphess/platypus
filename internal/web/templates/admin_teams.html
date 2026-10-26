@@ -1,0 +1,33 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" "teams" "Title" "Teams")}}
+<div class="page-actions"><a class="button primary" href="/admin/teams/new">New team</a></div>
+
+<div class="card">
+  <form class="search-bar" method="get" action="/admin/teams"
+        hx-get="/admin/teams" hx-trigger="input changed delay:300ms, search from:find input[type=search]"
+        hx-target="#team-list" hx-select="#team-list" hx-swap="outerHTML" hx-push-url="true">
+    <input type="search" name="q" value="{{.Search}}" placeholder="Search by name or description" aria-label="Search teams">
+    <button type="submit">Search</button>
+  </form>
+  {{template "team-list" .}}
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}
+
+{{/* The teams table; swapped in place while searching. */}}
+{{define "team-list"}}
+<div id="team-list">
+  <table>
+    <thead><tr><th>Team</th><th>Members</th><th>Description</th></tr></thead>
+    <tbody>
+    {{- range .Teams}}
+      <tr><td><a class="cell-name" href="/admin/teams/{{.ID}}" title="{{.Name}}">{{.Name}}</a>{{with .IDPGroup}} <span class="badge" title="Linked to identity-provider group">{{.}}</span>{{end}}</td><td class="nowrap">{{.MemberCount}}</td><td class="description" title="{{.Description}}">{{.Description}}</td></tr>
+    {{- else}}
+      <tr><td colspan="3" class="muted">{{if $.Search}}No teams match {{printf "%q" $.Search}}.{{else}}No teams yet.{{end}}</td></tr>
+    {{- end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

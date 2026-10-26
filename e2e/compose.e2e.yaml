@@ -1,0 +1,18 @@
+# Used only by the browser tests (e2e/run.sh): the test stack runs in its
+# own compose project, entirely inside the docker network — the playwright
+# container and the token reader are docker citizens too — so it publishes no
+# host ports and can run beside a dev stack without fighting over 8090.
+# The !override tags REPLACE the base file's port lists instead of adding.
+services:
+  postgres:
+    ports: !override []
+  ministack:
+    ports: !override []
+  dev-proxy:
+    ports: !override []
+  dex:
+    ports: !override []
+  web:
+    ports: !override []
+  web-oidc:
+    ports: !override []

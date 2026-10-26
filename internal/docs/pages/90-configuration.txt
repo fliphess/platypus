@@ -1,0 +1,58 @@
+Configuration
+
+Platypus is configured with environment variables only; there is no config file.
+This page is generated from the code, so it always matches what platypus reads.
+
+PLATYPUS_ENVIRONMENT | required | Where platypus runs: local, ci, acc or prd.
+PLATYPUS_PUBLIC_URL | required | The URL users open platypus on, for example https://platypus.example.internal. Used for passkeys and cookies. Must be https outside test mode.
+PLATYPUS_HTTP_ADDR | :8080 | Address the web server listens on.
+PLATYPUS_HEALTH_ADDR | :8081 | Address of the separate health check listener (/healthz and /readyz) for the Kubernetes probes. Never exposed through the Service or the gateway.
+PLATYPUS_LOG_LEVEL | info | Log level: debug, info, warn or error.
+PLATYPUS_SHUTDOWN_TIMEOUT | 15s | How long the server waits for running requests when shutting down.
+PLATYPUS_DB_HOST | required | Postgres host.
+PLATYPUS_DB_PORT | 5432 | Postgres port.
+PLATYPUS_DB_NAME | required | Postgres database name.
+PLATYPUS_DB_USERNAME | required | Postgres user for the application (read-write, no DDL rights needed).
+PLATYPUS_DB_PASSWORD | required | Postgres password for the application user. Secret: deliver it through a Kubernetes secret, never in plain values.
+PLATYPUS_DB_SCHEMA | platypus | Postgres schema holding the platypus tables (created by the Flyway migrations).
+PLATYPUS_DB_SSLMODE | verify-full | Postgres sslmode: disable, require, verify-ca or verify-full. require encrypts but doesn't check who answers; disable is only allowed in test mode.
+PLATYPUS_DB_SSLROOTCERT | — | File with the certificate authorities that sign the database server's certificate, for verify-ca and verify-full. For RDS: the AWS RDS certificate bundle. Empty uses the system's.
+PLATYPUS_DB_MAX_CONNS | 10 | Maximum number of database connections per process.
+PLATYPUS_AUTH_MODE | required | How people log in. header: a login proxy (for example oauth2-proxy) sets a header with the user's email; the gateway must strip it from incoming requests. signed-header: a login proxy sends a signed token (JWT) that platypus verifies. oidc: platypus logs people in itself with OpenID Connect. See docs/60-security.txt.
+PLATYPUS_ALLOWED_EMAIL_DOMAINS | required | Comma-separated email domains that may use platypus, for example example.com.
+PLATYPUS_IDENTITY_HEADER | X-Auth-Request-Email | header mode: the request header holding the email address of the logged-in user, set by the login proxy. The gateway must strip this header from incoming requests.
+PLATYPUS_GROUPS_HEADER | — | header mode: the request header holding the user's identity-provider groups as a comma-separated list, for example X-Auth-Request-Groups (oauth2-proxy). The gateway must strip this header from incoming requests. Empty (the default) switches group mapping off.
+PLATYPUS_SIGNED_HEADER | — | signed-header mode: the request header holding the signed token, for example X-Goog-Iap-Jwt-Assertion (Google IAP), Cf-Access-Jwt-Assertion (Cloudflare Access), X-Pomerium-Jwt-Assertion (Pomerium) or Authorization (oauth2-proxy passing the ID token).
+PLATYPUS_SIGNED_HEADER_JWKS_URL | — | signed-header mode: URL of the public keys (JWKS) the tokens are signed with.
+PLATYPUS_SIGNED_HEADER_ISSUER | — | signed-header mode: the issuer (iss) the tokens must have.
+PLATYPUS_SIGNED_HEADER_AUDIENCE | — | signed-header mode: the audience (aud) the tokens must have.
+PLATYPUS_SIGNED_HEADER_EMAIL_CLAIM | email | signed-header mode: the claim holding the user's email address.
+PLATYPUS_SIGNED_HEADER_GROUPS_CLAIM | — | signed-header mode: the claim holding the user's identity-provider groups, for example groups. Empty (the default) switches group mapping off.
+PLATYPUS_OIDC_ISSUER | — | oidc mode: the issuer URL of the identity provider, for example https://accounts.google.com or https://example.okta.com. Register PLATYPUS_PUBLIC_URL/auth/callback as redirect URL there.
+PLATYPUS_OIDC_CLIENT_ID | — | oidc mode: the client ID platypus has at the identity provider.
+PLATYPUS_OIDC_CLIENT_SECRET | — | oidc mode: the client secret platypus has at the identity provider. Secret: deliver it through a Kubernetes secret, never in plain values.
+PLATYPUS_OIDC_SCOPES | openid,email,profile | oidc mode: comma-separated scopes to request.
+PLATYPUS_OIDC_EMAIL_CLAIM | email | oidc mode: the claim in the ID token holding the user's email address.
+PLATYPUS_OIDC_GROUPS_CLAIM | — | oidc mode: the claim in the ID token holding the user's identity-provider groups, for example groups (Okta, Entra ID, Dex). Empty (the default) switches group mapping off.
+PLATYPUS_OIDC_PROMPT | — | oidc mode: sent as the prompt parameter to the identity provider. Use login to make people enter their credentials again after an idle logout, instead of being signed back in silently by their identity provider session. Empty leaves it to the identity provider.
+PLATYPUS_ENCRYPTION_KEY | required | Base64-encoded 32-byte key that encrypts TOTP secrets in the database. Generate one with: openssl rand -base64 32 Secret: deliver it through a Kubernetes secret, never in plain values.
+PLATYPUS_SSM_KMS_KEY_ID | — | KMS key ID or alias used for new SecureString parameters. Empty uses the AWS managed key.
+PLATYPUS_BOOTSTRAP_TOKEN_PARAM | /platypus/bootstrap-token | SSM parameter the bootstrap token is written to.
+PLATYPUS_BOOTSTRAP_TOKEN_TTL | 24h | How long a bootstrap token stays valid.
+PLATYPUS_ADMIN_MODE_DURATION | 15m | How long admin mode lasts after confirming with TOTP or a passkey.
+PLATYPUS_SESSION_IDLE_TIMEOUT | 10m | A platypus session ends after this long without requests. In oidc mode that logs the user out; in the proxy modes it ends admin mode (the proxy controls the login itself).
+PLATYPUS_SESSION_MAX_AGE | 12h | A platypus session ends this long after it started, active or not. In oidc mode the user then logs in again.
+PLATYPUS_REVEAL_HIDE_AFTER | 10s | A revealed value is hidden again in the browser after this long.
+PLATYPUS_REVEALS_PER_MINUTE | 30 | Maximum number of reveals per user per minute.
+PLATYPUS_PASSKEYS_ENABLED | true | Offer passkeys for admin mode. Passkeys need a browser that accepts the domain of PLATYPUS_PUBLIC_URL; switch them off where it doesn't, such as local development.
+PLATYPUS_TERRAFORM_TAGS | Terraform=true | Comma-separated key=value tags that mark a parameter or secret as managed by Terraform. Platypus shows those as such and refuses to change their value or description; the case of the value doesn't matter.
+PLATYPUS_SYNC_INTERVAL | 5m | How often the worker refreshes the list of parameters and secrets from AWS.
+PLATYPUS_SYNC_TIMEOUT | 1h | How long one sync may take before the worker gives up on it. When the worker hasn't finished a round of work for longer than this, its liveness check fails and Kubernetes restarts it.
+PLATYPUS_ACCESS_RECHECK_INTERVAL | 24h | How often the worker re-checks whether platypus itself can access every parameter and secret. Items platypus can't access are hidden.
+PLATYPUS_AUDIT_RETENTION_DAYS | 365 | The admin prune button deletes audit events older than this many days. 0 deletes everything older than now.
+PLATYPUS_BLOCK_CONTACT_EMAIL | — | Email address shown to users while platypus is blocked.
+PLATYPUS_DOCS_DIR | docs | Directory holding the documentation text files shown in the app.
+PLATYPUS_TEMPLATES_DIR | templates | Directory holding the HTML templates. Point it at your own set to change the interface without rebuilding the binary.
+PLATYPUS_STATIC_DIR | static | Directory holding the files served under /static: the stylesheet, javascript and logo.
+PLATYPUS_TEST_MODE | false | Run against a local AWS emulator with fake credentials instead of real AWS. Refused in acc and prd. Also allows plain http and the test encryption key.
+PLATYPUS_TEST_AWS_ENDPOINT | — | URL of the local AWS emulator (for example http://ministack:4566). Required in test mode, ignored otherwise. Must not point at amazonaws.com.

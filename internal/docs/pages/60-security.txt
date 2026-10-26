@@ -1,0 +1,18 @@
+How platypus keeps values safe
+
+Values never leave AWS except to the browser of someone allowed to reveal them, and only after that reveal is recorded in the audit trail. They are not stored in the platypus database, not written to logs, not part of error messages, and pages that show them are never cached.
+
+Who you are comes from your organisation's login. Depending on how platypus is set up (PLATYPUS_AUTH_MODE):
+header: a login proxy in front of platypus checks your login and passes your email address on. Only the proxy can reach platypus. Your identity-provider groups may come along the same way, putting you in teams linked to them.
+signed-header: a login proxy passes a signed token, which platypus checks itself; a forged token fails. Groups can travel in the token the same way, for teams linked to them.
+oidc: platypus sends you to the identity provider to log in. Your login ends after PLATYPUS_SESSION_IDLE_TIMEOUT without activity and after PLATYPUS_SESSION_MAX_AGE in any case. Use "Log out" in the header when you're done, and lock your screen.
+
+Admin mode needs a second factor on top of the login, and ends by itself. Admin mode doesn't give access to values.
+
+Platypus refuses requests from other websites, allows no scripts but its own, and can't be shown inside another site.
+
+Reveals are limited per user per minute (PLATYPUS_REVEALS_PER_MINUTE).
+
+Notes, descriptions and names are cleaned of HTML and scripts when saved, and everything is escaped when shown.
+
+Every action is in the audit trail, which only admins can see and nobody can change from the user interface.

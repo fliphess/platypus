@@ -1,0 +1,14 @@
+{{define "content"}}
+{{- with .Data}}
+<h1>Your recovery codes</h1>
+<div class="alert warning">Save these codes now, for example in your password manager. This is the only time platypus shows them. Each code works once.</div>
+<div class="card">
+  <ul class="codes">
+    {{- range .Codes}}
+    <li>{{.}}</li>
+    {{- end}}
+  </ul>
+</div>
+<div class="actions"><a class="button primary" href="{{.Continue}}">I saved my codes</a></div>
+{{- end}}
+{{end}}

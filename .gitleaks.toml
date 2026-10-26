@@ -1,0 +1,9 @@
+# Public keys that are deliberately not secrets: the docker-compose dev key,
+# the chart example key and config.TestEncryptionKey. platypus refuses all of
+# them outside test mode, and they are documented as such at each use.
+[allowlist]
+description = "platypus test keys (refused outside test mode)"
+regexes = [
+  '''cGxhdHlwdXMtdGVzdC1rZXktbm90LWZvci1wcm9kISE=''',
+  '''cGxhdHlwdXMtY2hhcnQtZXhhbXBsZS1ub3QtcmVhbCE=''',
+]

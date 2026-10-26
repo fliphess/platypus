@@ -1,0 +1,13 @@
+Getting started
+
+Platypus lets you work with SSM parameters and Secrets Manager secrets without access to AWS. You log in with your organisation's account; what you can do depends on the policies an admin gave you, directly or through your team.
+
+The front page shows how many parameters and secrets you can see. The SSM parameters tab and the Secrets tab list them by name, one page at a time; search by name, path, description or note to narrow the list. Open an item to see its details, its versions and its note.
+
+Add your name and department to your profile (click your name in the header), so admins and colleagues recognise you.
+
+Values are hidden by default. You only see them when a policy lets you reveal them, and even then a revealed value hides itself again after a short while.
+
+Everything you do is recorded in the audit trail, including opening an item without seeing its value.
+
+Can't see anything yet? Then you have no policy. Ask an admin of your team for access, and tell them which parameters or secrets you need. "My permissions" shows exactly what you have and where it comes from.

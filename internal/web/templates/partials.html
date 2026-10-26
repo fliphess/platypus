@@ -1,0 +1,109 @@
+{{/* Blocks shared by all pages. */}}
+
+{{define "problem"}}
+<div class="alert error" role="alert">{{.}}</div>
+<div class="actions"><button type="button" data-dismiss>Close</button></div>
+{{end}}
+
+{{define "csrf"}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}
+
+{{/* A button that is disabled with the reason the user lacks a permission. */}}
+{{define "denied-button"}}<button type="button" disabled title="{{.Reason}}">{{.Label}}</button>{{end}}
+
+{{/* Confirmation dialog for a change. Data: Summary, Action (URL), Form (id of the form to submit). */}}
+{{define "confirm"}}
+{{- with .Summary}}
+<h2 id="dialog-title">{{if .IsNew}}Create this {{.Kind.Noun}}?{{else}}Save these changes?{{end}}</h2>
+<p class="mono">{{.Name}}</p>
+{{- with .Note}}
+<div class="alert note"><strong>Note on this {{$.Summary.Kind.Noun}}:</strong>
+{{.Body}}</div>
+{{- end}}
+<h3>What {{if .IsNew}}is set{{else}}changes{{end}}</h3>
+<ul class="changes">
+  {{- if eq .Value "new"}}
+  <li><strong>Value</strong>: set <span class="muted">(not shown)</span></li>
+  {{- else if eq .Value "replaced"}}
+  <li><strong>Value</strong>: replaced <span class="muted">(not shown)</span>
+    {{- with .JSONKeys}}
+    <ul class="keys">
+      {{- range .Changed}}<li><span class="badge warn">changed</span> <code>{{.}}</code></li>{{end}}
+      {{- range .Added}}<li><span class="badge ok">added</span> <code>{{.}}</code></li>{{end}}
+      {{- range .Removed}}<li><span class="badge danger">removed</span> <code>{{.}}</code></li>{{end}}
+      {{- if .IsEmpty}}<li class="muted">No key changes its value; only the formatting differs.</li>{{end}}
+      {{- if .Unchanged}}<li class="muted">{{.Unchanged}} other {{if eq .Unchanged 1}}key stays{{else}}keys stay{{end}} the same</li>{{end}}
+    </ul>
+    {{- end}}
+  </li>
+  {{- end}}
+  {{- range .Settings}}
+  <li><strong>{{.Setting}}</strong>:
+    {{- if .Before}} <del class="muted">{{.Before}}</del> →{{end}}
+    {{with .After}}{{.}}{{else}}<span class="muted">empty</span>{{end}}</li>
+  {{- end}}
+</ul>
+{{- with .Tags}}
+<h3>Tags platypus sets</h3>
+<p>{{range $key, $value := .}}<span class="badge">{{$key}}={{$value}}</span> {{end}}</p>
+{{- end}}
+{{- range .Warnings}}
+<div class="alert warning">{{.}}</div>
+{{- end}}
+{{- end}}
+<div id="dialog-messages" class="messages"></div>
+<div class="actions">
+  <button class="primary" hx-post="{{.Action}}" hx-include="#{{.Form}}" hx-target="#dialog-messages">Continue</button>
+  <button type="button" data-dismiss>Cancel</button>
+</div>
+{{end}}
+
+{{/* Confirmation dialog for a simple action. Data: Title, Message, Action, Form, Button. */}}
+{{define "confirm-action"}}
+<h2 id="dialog-title">{{.Title}}</h2>
+<p>{{.Message}}</p>
+<div id="dialog-messages" class="messages"></div>
+<div class="actions">
+  <button class="primary" hx-post="{{.Action}}" hx-include="#{{.Form}}" hx-target="#dialog-messages">{{.Button}}</button>
+  <button type="button" data-dismiss>Cancel</button>
+</div>
+{{end}}
+
+{{/* Rolling back: what happens, plus the value being restored when the
+   viewer may reveal it. Data: Title, Message, Version, Value, Action, Form. */}}
+{{define "rollback-confirm"}}
+<h2 id="dialog-title">{{.Title}}</h2>
+<p>{{.Message}}</p>
+{{- if .Value}}
+<label>Value of version {{.Version}}</label>
+<pre class="rollback-value">{{.Value}}</pre>
+{{- else}}
+<p class="muted small">You can't reveal the value of this version; rolling back restores it unseen.</p>
+{{- end}}
+<div id="dialog-messages" class="messages"></div>
+<div class="actions">
+  <button class="primary" hx-post="{{.Action}}" hx-include="#{{.Form}}" hx-target="#dialog-messages">Roll back</button>
+  <button type="button" data-dismiss>Cancel</button>
+</div>
+{{end}}
+
+{{/* The admin area's frame: a column of section links beside the content,
+     like the docs. Data: dict "Section" (the active link) and "Title" (the
+     page's heading). Close with the admin-close template. */}}
+{{define "admin-open"}}
+<div class="admin">
+  <nav class="admin-views" aria-label="Admin">
+    <a href="/admin"{{if eq .Section "overview"}} class="active"{{end}}>Overview</a>
+    <a href="/admin/users"{{if eq .Section "users"}} class="active"{{end}}>Users</a>
+    <a href="/admin/teams"{{if eq .Section "teams"}} class="active"{{end}}>Teams</a>
+    <a href="/admin/policies"{{if eq .Section "policies"}} class="active"{{end}}>Policies</a>
+    <a href="/admin/audit"{{if eq .Section "audit"}} class="active"{{end}}>Audit trail</a>
+    <a href="/admin/notes"{{if eq .Section "notes"}} class="active"{{end}}>Orphaned notes</a>
+  </nav>
+  <div class="admin-content">
+    <h1>{{.Title}}</h1>
+{{end}}
+
+{{define "admin-close"}}
+  </div>
+</div>
+{{end}}

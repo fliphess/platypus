@@ -1,0 +1,22 @@
+{{- if .Values.kgatewayExtAuth.enabled }}
+{{- if not .Values.httpRoute.enabled }}
+{{- fail "kgatewayExtAuth needs httpRoute.enabled" }}
+{{- end }}
+# Sends every request on the route past the gateway's ext-auth extension
+# (for example oauth2-proxy) before it reaches platypus.
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: {{ include "platypus.fullname" . }}-ext-auth
+  labels:
+    {{- include "platypus.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ include "platypus.fullname" . }}
+  extAuth:
+    extensionRef:
+      name: {{ required "kgatewayExtAuth.extensionRef.name is required" .Values.kgatewayExtAuth.extensionRef.name }}
+      namespace: {{ required "kgatewayExtAuth.extensionRef.namespace is required" .Values.kgatewayExtAuth.extensionRef.namespace }}
+{{- end }}

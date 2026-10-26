@@ -1,0 +1,36 @@
+Access and policies
+
+A policy is a name and a list of rules. Admins assign policies to teams, and to people without a team directly. You get every rule of every policy that reaches you.
+
+Rules only give access; no rule takes it away. To give access to everything under /apps except /apps/payments, list the parts you do want instead: /apps/search/* and /apps/web/*. Keeping items that need different access under different prefixes makes this easy.
+
+A rule applies to SSM parameters or to secrets, has a pattern, and grants permissions.
+
+Patterns
+An exact name, like /payments/api/key, or a prefix ending in *, like /payments/*, which covers everything below it, at any depth. A * is only allowed at the end. A pattern of just * covers everything.
+
+Permissions
+list: see the item in lists and search, and open its page. Never the value.
+create: create new items with a matching name. Never overwrites.
+edit: change the value, description and note, and roll back. Includes list.
+reveal: see the current and earlier values. Includes list.
+
+Items you can't list don't exist for you: they never show up in lists or search, and opening one by name says it doesn't exist.
+
+Teams from identity-provider groups
+A team can be linked to one group of your identity provider (Okta, Entra ID, Dex, ...). Its members then come from that group: whoever is in the group is in the team, and their team's policies reach them. Nothing else changes; platypus never writes to the identity provider.
+
+In oidc and signed-header mode platypus reads the groups from the login token, in header mode from a header the login proxy sets. All three are off unless the deployment switches them on; ask whoever runs your platypus whether groups are in use.
+
+When platypus sees your login it puts you in the linked teams your groups name and takes you out of the others. In oidc mode that happens at each login: leave a group, and after your next login the team is gone. Teams without a group link keep their manually chosen members.
+
+Things to know:
+- Whoever manages groups in the identity provider decides who is on a linked team, and so who gets its policies. Only link groups managed by people you would trust with those policies.
+- A group feeds at most one team. Several teams for the same people? Give one team several policies.
+- Linked teams show their members but don't let admins add or remove them; that happens in the identity provider.
+
+Admins
+Admins are people in the admin group. They use platypus like everyone else and switch on admin mode with a second factor when they need to manage it. Admin mode doesn't give access to values; that only comes from policies, for admins too.
+
+Hidden items
+Platypus hides items that it can't access itself in AWS, for example a secret whose resource policy denies platypus. Admins can ask the worker to check access again from the admin overview.

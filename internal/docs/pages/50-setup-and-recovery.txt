@@ -1,0 +1,23 @@
+Setup and recovery
+
+First setup (bootstrap)
+On its first start, the worker writes a one-time token to the SSM parameter PLATYPUS_BOOTSTRAP_TOKEN_PARAM (default /platypus/bootstrap-token). Until setup completes, platypus does nothing else. Read the token with access to SSM in the AWS account:
+
+aws ssm get-parameter --with-decryption --name /platypus/bootstrap-token --query Parameter.Value --output text
+
+Open platypus, enter the token, set up an authenticator app or a passkey, save your recovery codes and finish. You are now the first admin. The token expires after PLATYPUS_BOOTSTRAP_TOKEN_TTL; the worker writes a new one when it does.
+
+Everyone lost their second factors
+Run the reset command in a platypus pod:
+
+kubectl exec deploy/platypus-worker -- /app/platypus reset-bootstrap
+
+Platypus goes back into setup mode and writes a new token to SSM. All users, teams, policies and audit events stay. Whoever completes setup joins the admin group, with fresh second factors. Only people who can exec into the pod and read SSM can do this; they already have full access to everything platypus can reach.
+
+A locked account
+An admin unlocks it under Users. If every admin is locked, clear the lock in the database:
+
+UPDATE platypus.users SET locked_at = NULL, failed_mfa_attempts = 0 WHERE email = 'name@example.com';
+
+The login or gateway is down
+Then platypus is down too: there is no second way in. AWS admins can still change parameters and secrets in the AWS console or CLI.

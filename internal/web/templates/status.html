@@ -1,0 +1,30 @@
+{{define "content"}}
+{{- with .Data}}
+<div class="status-page">
+  <img src="/static/logo.svg" alt="">
+  <h1>{{.Title}}</h1>
+  <p>{{.Message}}</p>
+  {{- with .Contact}}
+  <p>For more information, contact <a href="mailto:{{.}}">{{.}}</a>.</p>
+  {{- end}}
+  {{- if .LoginLink}}
+  <p><a class="button primary" href="/auth/login">Log in</a></p>
+  {{- end}}
+</div>
+{{- end}}
+{{end}}
+
+{{/* After a login: continue to where the user was going. Data: the local path. */}}
+{{define "continue"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url={{.}}">
+  <title>Logging in · Platypus</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="status-page"><p>Logged in. <a href="{{.}}">Continue</a></p></main>
+</body>
+</html>
+{{end}}

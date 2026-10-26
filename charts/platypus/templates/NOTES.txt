@@ -1,0 +1,11 @@
+Platypus is installed as {{ include "platypus.fullname" . }}.
+
+On its first start the worker writes a one-time bootstrap token to the SSM
+parameter {{ default "/platypus/bootstrap-token" .Values.config.PLATYPUS_BOOTSTRAP_TOKEN_PARAM }}. Read it with access to SSM:
+
+  aws ssm get-parameter --with-decryption --name {{ default "/platypus/bootstrap-token" .Values.config.PLATYPUS_BOOTSTRAP_TOKEN_PARAM }} \
+    --query Parameter.Value --output text
+
+Then open {{ .Values.config.PLATYPUS_PUBLIC_URL }} and set it up. Make sure only
+authenticated requests reach platypus and that your gateway strips the
+identity header from incoming requests (docs/60-security.txt).

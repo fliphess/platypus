@@ -1,0 +1,101 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" "audit" "Title" "Audit trail")}}
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<form class="card" method="get" action="/admin/audit"
+      hx-get="/admin/audit" hx-trigger="change, input changed delay:400ms from:find input[type=search]"
+      hx-target="#audit-results" hx-select="#audit-results" hx-swap="outerHTML" hx-push-url="true">
+  <div class="search-bar">
+    <input type="search" name="q" value="{{.Filter.Search}}" placeholder="Search anything in the table" aria-label="Search the audit trail">
+    <button type="submit">Search</button>
+  </div>
+  <div class="filters audit-filters">
+    <label for="since">From <input id="since" type="date" name="since" value="{{.Filter.Since}}"></label>
+    <label for="until">Until <input id="until" type="date" name="until" value="{{.Filter.Until}}"></label>
+    <label for="actor">User
+      <select id="actor" name="actor">
+        <option value="">anyone</option>
+        {{- range .Users}}<option value="{{.Email}}"{{if eq .Email $.Data.Filter.Actor}} selected{{end}}>{{.Email}}</option>{{end}}
+      </select>
+    </label>
+    <label for="action">Action
+      <select id="action" name="action">
+        <option value="">any</option>
+        {{- range .Actions}}<option value="{{.}}"{{if eq (printf "%s" .) $.Data.Filter.Action}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+    <label for="outcome">Outcome
+      <select id="outcome" name="outcome">
+        <option value="">any</option>
+        {{- range .Outcomes}}<option value="{{.}}"{{if eq (printf "%s" .) $.Data.Filter.Outcome}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+  </div>
+  <div class="actions"><a class="button" href="{{.CSVLink}}">Download CSV</a><a class="button" href="/admin/audit">Clear filters</a></div>
+</form>
+
+<div id="audit-results">{{template "audit-results" .}}</div>
+
+<div class="card">
+  <h2>Delete old events</h2>
+  <p>Deletes every event older than {{.RetentionDays}} days (<code>PLATYPUS_AUDIT_RETENTION_DAYS</code>). Platypus never deletes events by itself.</p>
+  <form id="prune-form" hx-post="/admin/audit/prune/preview" hx-target="#dialog-content" method="post" action="/admin/audit/prune/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="danger" type="submit">Delete old events</button>
+  </form>
+</div>
+{{- end}}
+{{template "admin-close"}}
+{{end}}
+
+{{/* The events and their pager; swapped in place when a filter changes.
+       Each event is a dropout row: clicking the line opens the complete
+       record. Nothing is ever clipped: the collapsed line wraps, and the
+       expanded body shows every field in full (JSON wraps too). The wrapper
+       with the id travels WITH the fragment, so the target still exists
+       after a swap. */}}
+{{define "audit-results"}}
+<div id="audit-results">
+  <div class="card">
+    {{- if .Events}}
+    <div class="event-columns" aria-hidden="true">
+      <span>When</span><span>Who</span><span>Action</span><span>Resource</span><span>Outcome</span>
+    </div>
+    <ul class="events">
+      {{- range .Events}}
+      <li>
+        <details class="event">
+          <summary class="event-grid">
+            <span class="event-time">{{time .OccurredAt}}</span>
+            <span class="event-actor" title="{{.ActorEmail}}">{{.ActorEmail}}</span>
+            <span class="event-action mono">{{.Action}}</span>
+            <span class="event-item mono" title="{{with .ResourceName}}{{.}}{{else}}not about one item{{end}}">{{with .ResourceName}}{{.}}{{else}}<span class="muted">—</span>{{end}}</span>
+            <span class="event-outcome">{{if eq .Outcome "allowed"}}<span class="badge ok">allowed</span>{{else if eq .Outcome "denied"}}<span class="badge warn">denied</span>{{else}}<span class="badge danger">{{.Outcome}}</span>{{end}}</span>
+          </summary>
+          <div class="event-body">
+            <dl class="facts">
+              <dt>When</dt><dd>{{time .OccurredAt}}</dd>
+              <dt>Who</dt><dd>{{.ActorEmail}} · <a href="/admin/audit?actor={{.ActorEmail}}">filter by this user</a></dd>
+              <dt>From</dt><dd class="mono">{{with .ClientIP}}{{.}}{{else}}unknown{{end}}</dd>
+              <dt>Action</dt><dd class="mono">{{.Action}}</dd>
+              <dt>Outcome</dt><dd>{{.Outcome}}{{with .Reason}} — {{.}}{{end}}</dd>
+              <dt>Resource</dt><dd class="mono">{{with .ResourceName}}{{.}}{{else}}not about one item{{end}}</dd>
+              {{- if ne (string .Details) "{}"}}
+              <dt>Details</dt><dd><pre class="mono event-json">{{string .Details}}</pre></dd>
+              {{- end}}
+            </dl>
+          </div>
+        </details>
+      </li>
+      {{- end}}
+    </ul>
+    {{- else}}
+    <p class="muted">No events match.</p>
+    {{- end}}
+    {{- with .OlderLink}}
+    <div class="actions"><a class="button" href="{{.}}">Older events</a></div>
+    {{- end}}
+  </div>
+</div>
+{{end}}

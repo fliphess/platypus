@@ -1,0 +1,103 @@
+{{define "content"}}
+{{- with .Data}}{{$title := "New policy"}}{{if .ID}}{{$title = .Input.Name}}{{end}}
+{{template "admin-open" (dict "Section" "policies" "Title" $title)}}
+<nav class="breadcrumbs"><a href="/admin/policies">← Policies</a></nav>
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<form id="policy-form" data-rule-editor data-dirty-form method="post" action="{{if .ID}}/admin/policies/{{.ID}}{{else}}/admin/policies{{end}}">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+  <div class="card">
+    <h2>Basics</h2>
+    <div class="form-stack">
+      <div class="field">
+        <label for="name">Name</label>
+        <input id="name" type="text" name="name" maxlength="100" value="{{.Input.Name}}" required autocomplete="off" data-1password-ignore>
+      </div>
+      <div class="field">
+        <label for="description">Description <span class="hint">optional</span></label>
+        <input id="description" type="text" name="description" maxlength="500" value="{{.Input.Description}}" autocomplete="off" data-1password-ignore>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Rules</h2>
+    <div class="rules" hx-post="/admin/policies/preview" hx-trigger="input changed delay:400ms, change, load" hx-target="#rule-preview" hx-include="#policy-form">
+      {{- range $i, $rule := .Input.Rules}}
+      {{template "rule-row" (dict "ID" (printf "r%d" $i) "Rule" $rule "Kinds" $.Data.Kinds)}}
+      {{- end}}
+    </div>
+    <button type="button" class="add-row" data-add-rule>+ Add a rule</button>
+    <template>{{template "rule-row" (dict "ID" "" "Kinds" .Kinds)}}</template>
+
+    <div class="rule-summary">
+      <h3>What these rules match</h3>
+      <div id="rule-preview"></div>
+    </div>
+
+    <div class="messages"></div>
+    <div class="actions">
+      <button class="primary" type="button" data-save-policy disabled
+              hx-post="{{if .ID}}/admin/policies/{{.ID}}/save/preview{{else}}/admin/policies/preview-create{{end}}"
+              hx-target="#dialog-content">{{if .ID}}Save policy{{else}}Create policy{{end}}</button>
+      <span class="field-hint" data-save-hint>Change something to save.</span>
+    </div>
+  </div>
+</form>
+
+{{- if .ID}}
+<div class="card">
+  <h2>Assigned to</h2>
+  <p class="muted small">Assign policies on a user's or team's page.</p>
+  <dl class="facts">
+    <dt>Users</dt>
+    <dd>{{range .Users}}<a class="chip" href="/admin/users/{{.ID}}">{{.Label}}</a> {{else}}<span class="muted">nobody</span>{{end}}</dd>
+    <dt>Teams</dt>
+    <dd>{{range .Teams}}<a class="chip" href="/admin/teams/{{.ID}}">{{.Name}}</a> {{else}}<span class="muted">no team</span>{{end}}</dd>
+  </dl>
+</div>
+<div class="card">
+  <h2>Delete policy</h2>
+  <form id="delete-policy" hx-post="/admin/policies/{{.ID}}/delete/preview" hx-target="#dialog-content" method="post" action="/admin/policies/{{.ID}}/delete/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="danger" type="submit">Delete this policy</button>
+  </form>
+</div>
+{{- end}}
+{{- end}}
+{{template "admin-close"}}
+{{end}}
+
+{{/* One rule of the editor. Data: ID (row id), Rule, Kinds. */}}
+{{define "rule-row"}}
+<fieldset class="rule-row">
+  <input type="hidden" name="rule_id" value="{{.ID}}">
+  <span class="rule-number" aria-hidden="true"></span>
+  <select name="rule_kind" aria-label="Applies to" required>
+    <option value=""{{if or (not $.Rule) (eq $.Rule.Kind "")}} selected{{end}}>Select what this rule applies to</option>
+    {{- range .Kinds}}<option value="{{.}}"{{if $.Rule}}{{if eq . $.Rule.Kind}} selected{{end}}{{end}}>{{.Title}}</option>{{end}}
+  </select>
+  <input type="text" name="rule_pattern" value="{{with .Rule}}{{.Pattern}}{{end}}" placeholder="/team/app/*" spellcheck="false" required aria-label="Pattern">
+  <fieldset class="rule-permissions">
+    {{- range $p := list "list" "create" "edit" "reveal"}}
+    <label class="checkbox"><input type="checkbox" name="rule_permission" data-permission="{{$p}}" value="{{$.ID}}:{{$p}}"{{if $.Rule}}{{if has $.Rule.Permissions $p}}{{if or (ne $p "list") $.Rule.Permissions.List}} checked{{end}}{{end}}{{end}}> {{$p}}</label>
+    {{- end}}
+  </fieldset>
+  <button type="button" data-remove-rule class="remove-row" aria-label="Remove this rule" title="Remove this rule">×</button>
+</fieldset>
+{{end}}
+
+{{define "rule-preview"}}
+<table class="small">
+  <tbody>
+  {{- range .}}
+    <tr>
+      <td>Rule {{.Number}}</td>
+      <td>{{.Kind.Title}}</td>
+      <td class="mono">{{.Pattern}}</td>
+      <td>{{if .Problem}}<span class="badge danger">{{.Problem}}</span>{{else}}matches {{.Count}} {{if eq .Count 1}}{{.Kind.Noun}}{{else}}{{.Kind.PluralNoun}}{{end}}{{end}}</td>
+    </tr>
+  {{- end}}
+  </tbody>
+</table>
+{{end}}

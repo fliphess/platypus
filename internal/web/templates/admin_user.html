@@ -1,0 +1,87 @@
+{{define "content"}}
+{{- with .Data}}{{$u := .Detail.User}}
+{{template "admin-open" (dict "Section" "users" "Title" $u.Label)}}
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<div class="card">
+  <h2>Account</h2>
+  <dl class="facts">
+    <dt>Email</dt><dd>{{$u.Email}}</dd>
+    <dt>Department</dt><dd>{{with $u.Department}}{{.}}{{else}}<span class="muted">not given</span>{{end}}</dd>
+    <dt>Created</dt><dd>{{time $u.CreatedAt}}{{with $u.CreatedBy}} by {{.}}{{end}}</dd>
+    <dt>First login</dt><dd>{{with $u.FirstLoginAt}}{{time .}}{{else}}<span class="muted">not yet</span>{{end}}</dd>
+    <dt>Last seen</dt><dd>{{time $u.LastSeenAt}}</dd>
+    <dt>Admin group</dt><dd>{{if $u.IsAdmin}}<span class="badge admin">member</span>{{else}}no{{end}}</dd>
+    {{- if $u.IDPGroups}}
+    <dt>Groups</dt><dd>{{range $u.IDPGroups}}<span class="badge">{{.}}</span> {{end}}</dd>
+    {{- end}}
+    <dt>Status</dt><dd>
+      {{- if $u.DisabledAt}}<span class="badge danger">disabled</span> since {{time $u.DisabledAt}}{{else if $u.LockedAt}}<span class="badge danger">locked</span> since {{time $u.LockedAt}} after failed second-factor attempts{{else}}<span class="badge ok">active</span>{{end}}
+    </dd>
+  </dl>
+  <div class="messages"></div>
+  <div class="actions">
+    <form hx-post="/admin/users/{{$u.ID}}/admin" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/admin">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+      <input type="hidden" name="admin" value="{{if $u.IsAdmin}}false{{else}}true{{end}}">
+      <button type="submit">{{if $u.IsAdmin}}Remove from admin group{{else}}Add to admin group{{end}}</button>
+    </form>
+    <form hx-post="/admin/users/{{$u.ID}}/disabled" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/disabled">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+      <input type="hidden" name="disabled" value="{{if $u.DisabledAt}}false{{else}}true{{end}}">
+      <button type="submit"{{if not $u.DisabledAt}} class="danger"{{end}}>{{if $u.DisabledAt}}Enable account{{else}}Disable account{{end}}</button>
+    </form>
+    {{- if $u.LockedAt}}
+    <form hx-post="/admin/users/{{$u.ID}}/unlock" hx-target="closest .card .messages" class="inline-form" method="post" action="/admin/users/{{$u.ID}}/unlock">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+      <button type="submit" class="primary">Unlock</button>
+    </form>
+    {{- end}}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Teams</h2>
+  <form hx-post="/admin/users/{{$u.ID}}/teams" hx-target="find .messages" method="post" action="/admin/users/{{$u.ID}}/teams">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    {{- range .AllTeams}}{{$team := .}}
+    <label class="checkbox"><input type="checkbox" name="team_id" value="{{.ID}}"{{if .IDPGroup}} disabled{{end}}{{range $.Data.Detail.Teams}}{{if eq .ID $team.ID}} checked{{end}}{{end}}> {{.Name}}{{with .IDPGroup}} <span class="badge">{{.}}</span>{{end}}</label>
+    {{- else}}
+    <p class="muted">There are no teams yet. <a href="/admin/teams">Create one</a>.</p>
+    {{- end}}
+    <div class="messages"></div>
+    {{- if .AllTeams}}<div class="actions"><button type="submit">Save teams</button></div>{{end}}
+  </form>
+</div>
+
+<div class="card">
+  <h2>Policies assigned directly</h2>
+  <p class="muted small">For people without a team. Policies through teams are listed below under effective rules.</p>
+  <form hx-post="/admin/users/{{$u.ID}}/policies" hx-target="find .messages" method="post" action="/admin/users/{{$u.ID}}/policies">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    {{- range .AllPolicies}}{{$policy := .}}
+    <label class="checkbox"><input type="checkbox" name="policy_id" value="{{.ID}}"{{range $.Data.Detail.Policies}}{{if eq .ID $policy.ID}} checked{{end}}{{end}}> {{.Name}}</label>
+    {{- end}}
+    <div class="messages"></div>
+    <div class="actions"><button type="submit">Save policies</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Effective rules</h2>
+  {{- if .Rules}}
+  <table>
+    <thead><tr><th>Kind</th><th>Pattern</th><th>Permissions</th><th>Policy</th><th>Team</th></tr></thead>
+    <tbody>
+    {{- range .Rules}}
+      <tr><td>{{.Kind.Title}}</td><td class="mono">{{.Pattern}}</td><td>{{permissions .Permissions}}</td><td>{{.Source.Policy}}</td><td>{{.Source.Team}}</td></tr>
+    {{- end}}
+    </tbody>
+  </table>
+  {{- else}}
+  <p class="muted">No access to parameters or secrets.</p>
+  {{- end}}
+</div>
+{{template "admin-close"}}
+{{- end}}
+{{end}}

@@ -1,0 +1,45 @@
+{{define "content"}}
+{{- with .Data}}
+<div class="docs">
+  <nav aria-label="Documentation">
+    {{- range .Pages}}
+    <a href="/docs/{{.Slug}}"{{if eq .Slug $.Data.Page.Slug}} class="active"{{end}}>{{.Title}}</a>
+    {{- end}}
+  </nav>
+  <article class="card">
+    <h1>{{.Page.Title}}</h1>
+    {{- range .Page.Blocks}}
+    {{- with .Heading}}<h2>{{.}}</h2>{{end}}
+    {{- with .Text}}<p>{{htmlText .}}</p>{{end}}
+    {{- if .Items}}
+    {{- $items := .Items}}
+    {{- if (index $items 0).Term}}
+    {{- if (index $items 0).Meta}}
+    <table class="docs-table">
+      <thead><tr><th>Setting</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+      {{- range $items}}
+        <tr><th scope="row">{{htmlText .Term}}</th><td class="meta">{{htmlText .Meta}}</td><td>{{htmlText .Text}}</td></tr>
+      {{- end}}
+      </tbody>
+    </table>
+    {{- else}}
+    <table class="docs-table">
+      <tbody>
+      {{- range $items}}
+        <tr><th scope="row">{{htmlText .Term}}</th><td>{{htmlText .Text}}</td></tr>
+      {{- end}}
+      </tbody>
+    </table>
+    {{- end}}
+    {{- else}}
+    <ul>
+      {{- range $items}}<li>{{htmlText .Text}}</li>{{end}}
+    </ul>
+    {{- end}}
+    {{- end}}
+    {{- end}}
+  </article>
+</div>
+{{- end}}
+{{end}}

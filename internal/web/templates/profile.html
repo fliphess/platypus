@@ -1,0 +1,21 @@
+{{define "content"}}
+{{- with .Data}}
+<h1>Profile</h1>
+<p class="muted">Your name and department help admins and colleagues recognise you. You are logged in as <strong>{{.Email}}</strong>; that comes from your organisation's login and can't be changed here.</p>
+<form class="card" hx-post="/me/profile" hx-target="find .messages" method="post" action="/me/profile">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+  <label for="display_name">Name</label>
+  <input id="display_name" type="text" name="display_name" maxlength="100" value="{{.DisplayName}}" autocomplete="name">
+  <label for="department">Department or team</label>
+  <input id="department" type="text" name="department" maxlength="100" value="{{.Department}}" autocomplete="organization-title">
+  <label>Time zone</label>
+  <div>
+    <label class="checkbox"><input type="radio" name="timezone" value="utc"{{if ne .Timezone "local"}} checked{{end}}> UTC</label>
+    <label class="checkbox"><input type="radio" name="timezone" value="local"{{if eq .Timezone "local"}} checked{{end}}> My own time zone</label>
+  </div>
+  <p class="field-hint">Only the display changes; instants are stored exactly either way.</p>
+  <div class="messages"></div>
+  <div class="actions"><button class="primary" type="submit">Save profile</button></div>
+</form>
+{{- end}}
+{{end}}

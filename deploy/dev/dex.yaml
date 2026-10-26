@@ -1,0 +1,28 @@
+# A local identity provider (Dex) for trying and testing oidc mode:
+#   docker compose --profile oidc up --build
+# then open http://localhost:8094 and log in as olivia@example.com with
+# password platypus-dev. Your browser has to reach Dex by its name: add
+# "127.0.0.1 dex" to /etc/hosts. Dev only: the user, password and client
+# secret are public.
+issuer: http://dex:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+  passwordConnector: local
+staticClients:
+  - id: platypus
+    name: Platypus
+    secret: platypus-dev-secret
+    redirectURIs:
+      - http://oidc.localhost:8080/auth/callback
+      - http://localhost:8094/auth/callback
+enablePasswordDB: true
+staticPasswords:
+  - email: olivia@example.com
+    username: Olivia OIDC
+    userID: 6f1c7a52-0d3e-4b8a-9b0e-2f6a1d3c9e41
+    # bcrypt of "platypus-dev"
+    hash: "$2a$10$jKRqZLpmgRFZf1SENany0O.4W1232xi5.AkOvx.GWWyiIWY2i9etW"

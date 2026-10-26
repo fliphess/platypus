@@ -1,0 +1,32 @@
+# sqlfluff configuration for the sqlc queries (scripts/sqlfluff.sh pre-processes
+# the sqlc placeholders to NULL::text, so the files parse as Postgres).
+#
+# The queries are written in one deliberate house style (lowercase keywords,
+# implicit join aliases, trailing commas, compact select lists). Rules that
+# check structure, ambiguity and mistake-prone patterns stay on; the purely
+# cosmetic layout rules that fight that style are off below.
+[sqlfluff]
+dialect = postgres
+templater = raw
+max_line_length = 120
+# Excluded, each for a reason:
+#   layout.indent, layout.long_lines, layout.select_targets, layout.commas,
+#   aliasing.table, aliasing.column, capitalisation.keywords: house style.
+#   layout.keyword_newline (LT14): WHERE stays with the FROM clause.
+#   ambiguous.column_count (AM04): sqlc's SELECT * is the intended pattern.
+#   structure.subquery (ST05): LATERAL aggregates are deliberately clearer
+#     than CTE rewrites for the per-user counts.
+#   structure.column_order (ST06): not a correctness concern.
+#   aliasing.expression (AL03) and structure.constant_expression (ST10):
+#     fire on the placeholder substitution ("'x'" standing in for a value).
+exclude_rules = layout.indent,layout.long_lines,layout.select_targets,layout.commas,aliasing.table,aliasing.column,capitalisation.keywords,layout.keyword_newline,ambiguous.column_count,structure.subquery,structure.column_order,aliasing.expression,structure.constant_expression
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:convention.terminator]
+multiline_newline = false
+require_final_semicolon = true

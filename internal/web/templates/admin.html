@@ -1,0 +1,47 @@
+{{define "content"}}
+{{- with .Data}}
+{{template "admin-open" (dict "Section" "overview" "Title" "Admin")}}
+<div class="page-actions"><button class="primary page-action-ghost" type="button" tabindex="-1" aria-hidden="true">Space</button></div>
+
+<div class="card">
+  <h2>Block all access</h2>
+  {{- if .Blocked}}
+  <div class="alert warning">Blocked by {{.BlockedBy}} since {{time .BlockedAt}}. Only admins can open platypus; nobody can reveal or change values.</div>
+  <form hx-post="/admin/unblock" method="post" action="/admin/unblock">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="primary" type="submit">Unblock platypus</button>
+  </form>
+  {{- else}}
+  <p>Shuts out everyone except admins at once, and stops all reveals and changes. Users see a notice{{with .ContactAddress}} pointing them to {{.}}{{end}}.</p>
+  <form id="block-form" hx-post="/admin/block/preview" hx-target="#dialog-content" method="post" action="/admin/block/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="danger" type="submit">Block all access</button>
+  </form>
+  {{- end}}
+</div>
+
+<div class="card">
+  <h2>Sync with AWS</h2>
+  {{- with .LatestSync}}
+  <dl class="facts">
+    <dt>Last sync</dt>
+    <dd>{{time .StartedAt}} ({{.Trigger}})
+      {{- if eq .Status "succeeded"}} <span class="badge ok">succeeded</span>{{else if eq .Status "running"}} <span class="badge">running</span>{{else}} <span class="badge danger">failed</span>{{end}}</dd>
+    <dt>Result</dt>
+    <dd>{{.ParametersSeen}} parameters · {{.SecretsSeen}} secrets · {{.AccessChecked}} access checks</dd>
+  </dl>
+  {{- with .Message}}<p class="alert error">{{.}}</p>{{end}}
+  {{- else}}
+  <p class="muted">No sync has run yet.</p>
+  {{- end}}
+  <form hx-post="/admin/sync" method="post" action="/admin/sync">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <div class="actions">
+      <label class="checkbox"><input type="checkbox" name="recheck_access"> Also re-check platypus's own access to every item</label>
+      <button type="submit">Sync now</button>
+    </div>
+  </form>
+</div>
+{{- end}}
+{{template "admin-close"}}
+{{end}}

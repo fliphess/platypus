@@ -1,0 +1,48 @@
+{{define "content"}}
+{{- with .Data}}
+<h1>Admin mode</h1>
+<p class="muted">Admin mode opens the admin pages for a while. It doesn't give access to values.</p>
+
+{{- if not .Factors.Any}}
+<div class="alert info">
+  <p>You need a second factor before you can use admin mode.</p>
+  <p><a class="button primary" href="/me/security">Set up a second factor</a></p>
+</div>
+{{- else}}
+{{- if .Factors.TOTP}}
+<div class="card">
+  <h2>Authenticator app</h2>
+  <form hx-post="/admin/elevate/totp" hx-target="find .messages" method="post" action="/admin/elevate/totp">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <label for="code">Six-digit code</label>
+    <input id="code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus>
+    <div class="messages"></div>
+    <div class="actions"><button class="primary" type="submit">Confirm</button></div>
+  </form>
+</div>
+{{- end}}
+{{- if and .Passkeys .Factors.Passkeys}}
+<div class="card">
+  <h2>Passkey</h2>
+  <p id="elevate-messages" class="alert error" hidden></p>
+  <button type="button" class="primary" data-passkey="login" data-messages="elevate-messages"
+          data-begin="/admin/elevate/passkey/begin" data-finish="/admin/elevate/passkey/finish">Use a passkey</button>
+</div>
+{{- end}}
+{{- if and (not .Passkeys) (not .Factors.TOTP)}}
+<div class="alert info">Passkeys are switched off here. Use a recovery code, then set up an authenticator app under <a href="/me/security">second factors</a>.</div>
+{{- end}}
+<details class="card"{{if and (not .Passkeys) (not .Factors.TOTP)}} open{{end}}>
+  <summary>Use a recovery code</summary>
+  <form hx-post="/admin/elevate/recovery" hx-target="find .messages" method="post" action="/admin/elevate/recovery">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <label for="recovery">Recovery code</label>
+    <input id="recovery" type="text" name="code" autocomplete="off" required>
+    <div class="messages"></div>
+    <div class="actions"><button type="submit">Confirm</button></div>
+  </form>
+</details>
+<p class="muted small">Five failed attempts in a row lock your account until another admin unlocks it.</p>
+{{- end}}
+{{- end}}
+{{end}}

@@ -1,0 +1,933 @@
+/* Platypus: one small stylesheet, no framework. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1d2430;
+  --muted: #5d6878;
+  --border: #dde2e9;
+  --accent: #0f766e;
+  --accent-text: #ffffff;
+  --accent-soft: #e3f2f0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --warning: #8a5a00;
+  --warning-soft: #fff4dc;
+  --success: #1a7f37;
+  --success-soft: #e6f4ea;
+  --admin: #6941c6;
+  --admin-soft: #f0ebfc;
+  --terraform: #5c4ee5;
+  --terraform-soft: #ecebfd;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 8px;
+  /* Spacing and type scale: components below use these, so density is one
+     decision instead of fifty. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+  --text-small: 0.85rem;
+  --text-body: 0.95rem;
+  --text-title: 1.25rem;
+}
+
+/* Dark colours: chosen with the theme switch, or from the system setting
+   when the user didn't choose. */
+:root[data-theme=dark] {
+    color-scheme: dark;
+    --bg: #1c2129;
+    --surface: #252b34;
+    --text: #e3e7ed;
+    --muted: #a3adbb;
+    --border: #3a424e;
+    --accent: #3cc0b0;
+    --accent-text: #0b1512;
+    --accent-soft: #1d3a37;
+    --danger: #f97066;
+    --danger-soft: #42221f;
+    --warning: #f5b546;
+    --warning-soft: #3b3018;
+    --success: #4ac26b;
+    --success-soft: #1b3624;
+    --admin: #a48afb;
+    --admin-soft: #2e2747;
+    --terraform: #a48afb;
+    --terraform-soft: #2e2747;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+      color-scheme: dark;
+      --bg: #1c2129;
+      --surface: #252b34;
+      --text: #e3e7ed;
+      --muted: #a3adbb;
+      --border: #3a424e;
+      --accent: #3cc0b0;
+      --accent-text: #0b1512;
+      --accent-soft: #1d3a37;
+      --danger: #f97066;
+      --danger-soft: #42221f;
+      --warning: #f5b546;
+      --warning-soft: #3b3018;
+      --success: #4ac26b;
+      --success-soft: #1b3624;
+      --admin: #a48afb;
+      --admin-soft: #2e2747;
+      --terraform: #a48afb;
+      --terraform-soft: #2e2747;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); }
+code, pre, .mono { font-family: var(--mono); font-size: 0.92em; }
+
+/* Header and navigation */
+
+:root[data-theme=light] { color-scheme: light; }
+
+/* One status line under the header: state, not nagging. */
+.status-strip {
+  padding: 0.45rem 1.25rem;
+  font-size: var(--text-small);
+  border-bottom: 1px solid var(--border);
+}
+.status-strip.warning { background: var(--warning-soft); color: var(--warning); }
+.status-strip.info { background: var(--accent-soft); color: var(--accent); }
+
+/* Transient confirmations: a small toast, bottom right, gone by itself. */
+.toast {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  max-width: 26rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+  z-index: 60;
+  transition: opacity 0.4s ease;
+}
+.toast.toast-out { opacity: 0; }
+
+/* Header user area: a designed group, not a run of links. */
+.user { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
+.user-name { color: var(--text); font-weight: 600; text-decoration: none; }
+.user-name:hover { color: var(--accent); }
+.chip {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--admin-soft);
+  color: var(--admin);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+}
+.chip:hover { filter: brightness(1.05); }
+button.quiet {
+  border: none;
+  background: none;
+  padding: 0.2rem 0.4rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+button.quiet:hover { color: var(--text); }
+
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header .inner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.6rem 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.brand img { width: 52px; height: 33px; }
+
+.tabs { display: flex; gap: 0.25rem; flex: 1; }
+
+.tabs a {
+  white-space: nowrap;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tabs a:hover { background: var(--bg); color: var(--text); }
+.tabs a.active { background: var(--accent-soft); color: var(--accent); }
+/* The admin area: one column of section links beside the content, like the
+   docs. The link column is a contained panel, not floating links. */
+.admin { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.admin-views {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  position: sticky;
+  top: 1rem;
+}
+.admin-views a {
+  padding: 0.45rem 0.7rem;
+  border-radius: calc(var(--radius) - 3px);
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+.admin-views a:hover { background: var(--bg); color: var(--text); }
+.admin-views a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.admin-content > :first-child { margin-top: 0; }
+
+.user {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.user form { margin: 0; }
+
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.badge.admin { background: var(--admin-soft); color: var(--admin); border-color: transparent; }
+.badge.warn { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+.badge.ok { background: var(--success-soft); color: var(--success); border-color: transparent; }
+.badge.danger { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.badge.terraform { background: var(--terraform-soft); color: var(--terraform); border-color: transparent; }
+.badge.note { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+
+.theme-toggle { font-size: 0.82rem; padding: 0.25rem 0.6rem; color: var(--muted); }
+
+main {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+h2 { font-size: 1.15rem; margin: 1.75rem 0 0.75rem; }
+h3 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.page-head h1 { margin: 0; word-break: break-all; }
+h1.mono { font-size: 1.35rem; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.88rem; }
+
+/* Cards, tables and lists */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+/*
+ * The table spec: every table in platypus follows this. Column types carry
+ * their own rules so long content can never stretch or wrap a layout:
+ *  - identifiers (.mono-cell / .name): monospaced, one line, ellipsis with
+ *    the full text in a tooltip, a generous maximum width.
+ *  - moments (.when): one line, never wrapped ("2026-10-25 18:22 UTC").
+ *  - state (.state-cell): badges on one line.
+ *  - actions (.row-actions): right-aligned on the row's middle.
+ *  - descriptions: one line, ellipsis, tooltip.
+ * Headers align with cells because they share the column types.
+ */
+th, td {
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th { color: var(--muted); font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+
+td.when, .when { white-space: nowrap; color: var(--muted); font-size: 0.85rem; }
+td.mono-cell, .mono-cell {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 44ch;
+}
+.item-list .name {
+  display: inline-block;
+  max-width: 62ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.item-list .state-cell { white-space: nowrap; }
+.item-list .state-cell .badge + .badge { margin-left: 0.25rem; }
+.item-list .description, td.description {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.unnamed { color: var(--muted); font-style: italic; }
+:root {
+  --button-pad-x: 0.55rem;
+  --item-facts: 8rem 7.5rem 4rem 9.5rem;
+}
+/* Helper text sits BELOW the field it explains. */
+.field-hint { color: var(--muted); font-size: var(--text-small); margin: 0.3rem 0 0; }
+.type-cell { white-space: nowrap; }
+/* Item lists: a real aligned grid — Name, Type, State, Note, Changed and a
+   way in. The header, the row and the row's action share the tracks, so the
+   labels sit exactly above the fields. Long names clip with a tooltip;
+   nothing reflows the columns. */
+.item-columns, .item-row {
+  display: grid;
+  /* The name is the field people actually scan: it gets the space. */
+  grid-template-columns: minmax(0, 1fr) var(--item-facts) 4.5rem;
+  gap: 0.25rem 0.35rem;
+  align-items: baseline;
+}
+/* The disclosure owns the first five columns; the action is its sibling in
+   the sixth. An <a> inside <summary> is invalid and unreliable, so it can
+   never go back in there. The summary repeats the same five tracks: with the
+   same gaps the 1fr resolves identically, so the columns line up. */
+.item-row > details { grid-column: 1 / 6; min-width: 0; }
+.item-row > .row-edit { grid-column: 6; }
+.item-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--item-facts);
+  gap: 0.25rem 0.35rem;
+  align-items: baseline;
+}
+.item-columns {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.item-grid > * { min-width: 0; }
+/* The expanded row shows the whole path, wrapping rather than clipping. */
+.path-value { word-break: normal; overflow-wrap: anywhere; }
+/* Long paths are the norm: two lines, broken anywhere, before any ellipsis.
+   The full path is in the dropdown and in the tooltip regardless. */
+.item-grid .item-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  /* Breaks come from the <wbr> after each slash; a segment longer than the
+     line still has to break somewhere. */
+  word-break: normal;
+}
+.item-grid .state-cell, .item-grid .note-cell, .item-grid .type-cell { white-space: nowrap; }
+.item-row > .row-edit, .item-columns .head-edit { text-align: right; }
+/* The Edit label sits above the button's WORD, not above its box: mirror the
+   button's right padding and 1px border, or the two words drift ~10px. */
+.item-columns .head-edit { padding-inline-end: calc(var(--button-pad-x) + 1px); }
+/* The row's Edit action: compact, and quiet when it cannot apply. */
+.button.small, .item-row .row-edit .button {
+  padding: 0.1rem var(--button-pad-x);
+  font-size: var(--text-small);
+}
+.item-row .row-edit [aria-disabled=true] { opacity: 0.45; cursor: not-allowed; }
+/* The dropdown's action row only exists where the row action is hidden. */
+.only-narrow { display: none; }
+@media (max-width: 60rem) {
+  .item-columns { display: none; }
+  /* The row's action moves into the dropdown: no trailing button, and no
+     interactive element has to sit inside the summary. */
+  .item-row { display: block; }
+  .item-row > details { grid-column: auto; }
+  .item-row > .row-edit { display: none; }
+  .only-narrow { display: revert; }
+  .item-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.8rem;
+  }
+  /* The name gets its own line and wraps; the facts follow together and the
+     action stays at the end — nothing disappears, and no empty gulf. */
+  .item-grid .item-name {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow: visible;
+    word-break: break-all;
+  }
+}
+/* Secondary line inside a cell: its own line, clipped with a tooltip. */
+.cell-sub { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Actions inside a description list row: one aligned line. */
+.cell-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.3rem; }
+.nowrap { white-space: nowrap; }
+/* The hidden attribute wins over component display rules (e.g. .field). */
+[hidden] { display: none !important; }
+/* Fields revealed by a checkbox sit visually under it. */
+.toggle-link { margin: 0.9rem 0 0; }
+.toggle-field { margin-top: 0.5rem; }
+.cell-name { display: inline-block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.cell-email { max-width: 34ch; }
+/* Audit columns: generous but capped, so long item names and details clip
+   with a tooltip instead of stretching the table. */
+.audit-table .cell-action { max-width: 22ch; }
+.audit-table .cell-item { max-width: 34ch; }
+.audit-table .cell-reason { max-width: 52ch; }
+/* People rows (users, team members): the summary wraps; long names and
+   emails never clip and never widen the page. */
+.person-name { font-weight: 600; }
+.person-email { font-size: 0.9rem; color: var(--muted); word-break: break-all; }
+.person-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.person-row:last-child { border-bottom: none; }
+.person-row form { margin-left: auto; }
+
+.people .event-outcome { margin-left: auto; }
+.note-body { margin: 0.2rem 0 0; white-space: pre-wrap; word-break: break-word; }
+
+/* The audit trail is a log of dropout rows: the summary line wraps freely
+   (nothing clipped), and clicking it opens the complete record — every
+   field in full, JSON wrapping instead of scrolling. */
+.events { list-style: none; margin: 0; padding: 0; }
+.event { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+.events li:last-child .event { border-bottom: none; }
+.event > summary { cursor: pointer; }
+.event-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; }
+.event-time { color: var(--muted); font-size: var(--text-small); white-space: nowrap; }
+.event-actor { font-weight: 500; }
+.event-action { color: var(--muted); font-size: 0.88rem; }
+.event-item { font-size: 0.88rem; word-break: break-all; }
+.event-outcome { margin-left: auto; }
+/* The audit trail: one grid for the header and every summary line, so labels
+   sit exactly above their values. The action column sizes to its content (no
+   mid-word breaks); the item clips with a tooltip and is shown in full in the
+   dropdown. */
+.event-columns, .event-grid {
+  display: grid;
+  grid-template-columns: 10rem 12rem 15rem minmax(0, 1fr) 5.5rem;
+  gap: 0.25rem 0.9rem;
+  align-items: baseline;
+}
+.event-columns {
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.event-grid > * { min-width: 0; }
+/* The Outcome label sits above the badge's word, not its pill edge. */
+.event-columns span:last-child { padding-inline-start: 0.5rem; }
+.event-grid .event-action { white-space: nowrap; }
+.event-grid .event-actor, .event-grid .event-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-grid .event-outcome { margin-left: 0; }
+@media (max-width: 60rem) {
+  .event-columns { display: none; }
+  .event-grid { grid-template-columns: 1fr; gap: 0.15rem; }
+  .event-grid .event-action, .event-grid .event-item, .event-grid .event-actor { white-space: normal; overflow: visible; text-overflow: clip; }
+}
+.event-body { margin: 0.6rem 0 0 1.2rem; }
+.event-body dt { margin-top: 0.35rem; }
+.event-body dd { margin: 0.1rem 0 0; word-break: break-word; }
+.event-json {
+  margin: 0;
+  padding: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Screen-reader-only labels: a column header that is only icons or actions. */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* A button that acts on one row (Disable, Remove, ...) is compact and sits
+   on the text line, so it belongs to the row instead of stretching it. */
+td button {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.82rem;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+/* The rollback dialog shows the value it is about to restore. */
+.rollback-value {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem;
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Version rows: actions on the line, right-aligned, with the revealed value
+   appearing under them. */
+.row-actions { text-align: right; vertical-align: middle; }
+.row-actions .actions { justify-content: flex-end; margin: 0; display: inline-flex; gap: 0.4rem; }
+.row-actions .actions form { display: inline-flex; }
+
+
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+/* A wide table scrolls inside its card; it never widens the page. */
+
+.steps { padding-left: 2.25rem; }
+.steps li { padding: 0.2rem 0; color: var(--muted); }
+.steps li[aria-current=step] { color: var(--text); font-weight: 700; }
+
+dl.facts {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+}
+
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; word-break: break-all; }
+
+.listing { list-style: none; margin: 0; padding: 0; }
+
+.listing li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.listing li:last-child { border-bottom: none; }
+.listing .icon { width: 1.25rem; color: var(--muted); flex: none; }
+.listing .name { font-family: var(--mono); word-break: break-all; }
+.listing .description { color: var(--muted); font-size: 0.88rem; }
+
+/* A breadcrumb is a small way back, not a title. */
+.breadcrumbs { margin-bottom: 0.5rem; font-size: var(--text-small); }
+.breadcrumbs a { color: var(--muted); text-decoration: none; }
+.breadcrumbs a:hover { color: var(--accent); }
+
+/* Item lists: the shared table spec (top of the tables section) carries the
+   column rules; only the list-specific bits live here. */
+
+.pager { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+.pager span { margin-right: auto; }
+
+/* Front page */
+
+.welcome { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; }
+.welcome img { width: 96px; }
+.welcome h1 { margin-bottom: 0.25rem; }
+
+/* Team member search */
+
+.candidates { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.candidates li { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--border); }
+.candidates li:last-child { border-bottom: none; }
+
+/* Confirmation of a change */
+
+.changes { padding-left: 1.2rem; }
+.changes > li { margin: 0.4rem 0; }
+.changes .keys { list-style: none; padding-left: 0.25rem; margin: 0.4rem 0; }
+.changes .keys li { margin: 0.2rem 0; }
+.changes del { text-decoration: line-through; }
+.editor-bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+
+/* Forms and buttons */
+
+label { display: block; font-weight: 600; margin: 0.9rem 0 0.3rem; }
+label .hint { font-weight: 400; color: var(--muted); margin-left: 0.35rem; }
+
+input[type=text], input[type=email], input[type=search], select, textarea {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Native date inputs: comfortable size, consistent chrome, slim focus. */
+input[type=date] {
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  min-width: 10.5rem;
+  width: 100%;
+}
+
+textarea { font-family: var(--mono); min-height: 8rem; resize: vertical; }
+input:focus, select:focus, textarea:focus {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.checkbox { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 400; margin: 0 1rem 0 0; }
+
+.button, button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:hover, button:hover { border-color: var(--muted); }
+.button.primary, button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.button.danger, button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.button.link, button.link { border: none; background: none; color: var(--accent); padding: 0; }
+button:disabled, .button[aria-disabled=true] { opacity: 0.5; cursor: not-allowed; }
+
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+.inline-form { display: inline; margin: 0; }
+
+.filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0 1rem; }
+/* The audit filters below its search row: a tidy 2 × 2 grid. */
+.audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem; }
+@media (max-width: 60rem) { .audit-filters { grid-template-columns: 1fr; } }
+.toolbar-line { margin-bottom: 0.6rem; }
+.filters label { font-weight: 500; }
+
+.search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.search-bar input { flex: 1; }
+
+/* A toolbar row: the search box with a quiet view switch beside it. */
+.toolbar-label { color: var(--muted); font-size: var(--text-small); font-weight: 600; }
+/* A stacked toolbar: the view switch on its own line, controls below. */
+.toolbar-stack { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.toolbar-line { display: flex; align-items: center; gap: 0.6rem; }
+.toolbar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.toolbar .search-bar { flex: 1; min-width: 14rem; margin-bottom: 0; }
+
+/* A view switch as links: All / Without access. */
+.segment-nav { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.segment-nav a { padding: 0.35rem 0.85rem; text-decoration: none; color: var(--muted); font-weight: 500; font-size: 0.92rem; }
+.segment-nav a + a { border-left: 1px solid var(--border); }
+.segment-nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Page-level actions (New policy, ...) at the top of a content column. */
+.page-actions .page-action-ghost { visibility: hidden; }
+.page-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-bottom: 0.9rem; }
+
+/* Forms: labels above inputs, aligned columns. */
+.form-stack { display: grid; gap: 0.8rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.8rem 1.5rem; align-items: start; }
+/* A field is a label above its input, so pairs never drift onto one line. */
+.form-grid .field { display: grid; gap: 0.3rem; align-content: start; }
+.form-grid label { margin: 0; }
+.form-grid .full { grid-column: 1 / -1; }
+
+/* The policy editor: the add-a-rule form is its own aligned form; the rules
+   list below is numbered (by counter) with Remove at each row's end. */
+.rule-add-row { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: 0.6rem 1rem; align-items: end; }
+.rule-add-row label { margin: 0; }
+.rule-add-row .rule-permissions { align-self: end; }
+.rule-add-row button { justify-self: end; }
+.rules { display: grid; gap: 0.5rem; counter-reset: rule; }
+/* The plus row that adds another rule, like a table's "add" affordance. */
+.add-row {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+.add-row:hover { border-color: var(--accent); color: var(--accent); }
+.rule-summary { margin-top: 1.2rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+.rule-summary h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+.rules .empty { margin: 0; }
+.rule-row {
+  display: grid;
+  grid-template-columns: 2rem 10.5rem 1fr auto 2.4rem;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rule-number::before { counter-increment: rule; content: counter(rule) "."; color: var(--muted); font-weight: 600; }
+.rule-row select, .rule-row input[type=text] { width: 100%; }
+.rule-permissions { display: inline-flex; gap: 0.4rem; align-items: center; margin: 0; padding: 0; border: none; }
+.rule-permissions legend { all: unset; }
+.rule-permissions .checkbox { margin: 0; white-space: nowrap; }
+@media (max-width: 55rem) {
+  .rule-add-row, .rule-row { grid-template-columns: 1fr; }
+}
+
+/* Empty state: one muted sentence saying what to do next. */
+.empty { color: var(--muted); padding: var(--space-5) 0; text-align: center; }
+
+/* Stats (home): number tiles with a label, linked to their list. */
+.stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: var(--space-5) 0; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 13rem;
+  padding: 1rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+.stat:hover { border-color: var(--accent); }
+.stat:hover .stat-label { color: var(--accent); }
+.stat-number { font-size: 2.1rem; font-weight: 700; line-height: 1; color: var(--accent); }
+.stat-label { font-weight: 600; }
+.stat-hint { color: var(--muted); font-weight: 400; font-size: var(--text-small); }
+.home-links { display: flex; gap: var(--space-4); flex-wrap: wrap; color: var(--muted); margin-top: var(--space-3); }
+
+/* Docs: term/text pairs render as a two-column table (the configuration
+   page is one); bullets stay bullets. */
+.docs-table { margin: 0.6rem 0; }
+.docs-table th {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: top;
+  padding: 0.45rem 0.7rem 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  width: 1%;
+}
+.docs-table td {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.55;
+}
+.docs-table tr:last-child th, .docs-table tr:last-child td { border-bottom: none; }
+.docs-table code { border: none; background: none; padding: 0; font-size: 1em; }
+/* Three-column configuration rows: the default gets its own narrow column. */
+.docs-table .meta { white-space: nowrap; color: var(--muted); width: 1%; padding-right: 0.7rem; }
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.06rem 0.3rem;
+  border-radius: 4px;
+}
+
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.segmented label { margin: 0; padding: 0.3rem 0.8rem; font-weight: 500; cursor: pointer; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented input:checked + span { color: var(--accent); }
+.segmented label:has(input:checked) { background: var(--accent-soft); }
+
+/* The JSON fields editor: one line per entry, with a real key column and a
+   value column that uses the width; the remove action stays compact. */
+.field-rows .field-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(16rem, 2.5fr) auto;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+.field-row button { padding: 0.1rem 0.55rem; font-size: 0.82rem; white-space: nowrap; }
+/* A row's remove action: a quiet × that needs no column of its own. */
+.remove-row { padding: 0.05rem 0.5rem; font-size: 1rem; line-height: 1.4; }
+
+/* Messages */
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin: 0 0 1rem;
+  border: 1px solid transparent;
+}
+
+.alert.error { background: var(--danger-soft); color: var(--danger); }
+.alert.warning { background: var(--warning-soft); color: var(--warning); }
+.alert.success { background: var(--success-soft); color: var(--success); }
+.alert.info { background: var(--accent-soft); color: var(--accent); }
+.alert.terraform { background: var(--terraform-soft); color: var(--text); border-color: var(--terraform); }
+.alert.note { background: var(--warning-soft); color: var(--text); border-color: var(--warning); white-space: pre-line; }
+.alert p:first-child { margin-top: 0; }
+.alert p:last-child { margin-bottom: 0; }
+
+/* Revealed values */
+
+.value-box {
+  position: relative;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.value-box pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+.value-hidden { color: var(--muted); letter-spacing: 0.2em; }
+
+/* Confirmation dialog */
+
+dialog {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 40rem;
+  width: calc(100% - 2rem);
+  background: var(--surface);
+  color: var(--text);
+}
+
+dialog::backdrop { background: rgba(10, 14, 20, 0.45); }
+dialog h2 { margin-top: 0; }
+
+/* Recovery codes and QR codes */
+
+.codes { columns: 2; font-family: var(--mono); font-size: 1.05rem; list-style: none; padding: 0; }
+.qr { background: #fff; padding: 0.5rem; border-radius: var(--radius); width: 240px; height: 240px; }
+
+/* Docs */
+
+.docs { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 1.5rem; }
+/* The docs nav is a panel like the admin sections. */
+.docs nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  position: sticky;
+  top: 1rem;
+}
+.docs nav a {
+  padding: 0.4rem 0.7rem;
+  border-radius: calc(var(--radius) - 3px);
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+.docs nav a:hover { background: var(--bg); color: var(--text); }
+.docs nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+/* The docs article uses the same width as the admin views' content, so the
+   page doesn't jump between sections. Line length is bounded by the layout,
+   not by a separate measure. */
+.docs article { max-width: none; }
+.docs article p { line-height: 1.6; }
+.docs article h2 { margin: 1.7rem 0 0.4rem; font-size: 1.02rem; }
+.docs article ul { margin: 0.5rem 0; padding-left: 1.4rem; }
+.docs article li { margin: 0.3rem 0; line-height: 1.55; }
+
+/* Full-page status messages */
+
+.status-page { max-width: 34rem; margin: 4rem auto; text-align: center; }
+.status-page img { width: 120px; }
+
+@media (max-width: 760px) {
+  .site-header .inner { flex-wrap: wrap; gap: 0.75rem; }
+  .docs, .admin { grid-template-columns: 1fr; }
+  .admin-views, .docs nav { position: static; flex-direction: row; flex-wrap: wrap; }
+  dl.facts { grid-template-columns: 1fr; }
+}
+
+/* First headings in cards sit flush. */
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+
+.steps { padding-left: 2.25rem; }
+.steps li { padding: 0.2rem 0; color: var(--muted); }
+.steps li[aria-current=step] { color: var(--text); font-weight: 700; }

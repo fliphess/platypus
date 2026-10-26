@@ -1,0 +1,5 @@
+/bin/
+/coverage.out
+/.env
+/e2e/node_modules/
+/e2e/shots/

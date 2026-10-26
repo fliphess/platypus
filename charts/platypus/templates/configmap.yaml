@@ -1,0 +1,16 @@
+{{- $required := list "PLATYPUS_PUBLIC_URL" "PLATYPUS_ALLOWED_EMAIL_DOMAINS" "PLATYPUS_DB_HOST" "PLATYPUS_AUTH_MODE" }}
+{{- range $required }}
+{{- if not (index $.Values.config .) }}
+{{- fail (printf "config.%s is required" .) }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platypus.fullname" . }}
+  labels:
+    {{- include "platypus.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}

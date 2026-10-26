@@ -1,0 +1,13 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.web.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "platypus.fullname" . }}-web
+  labels:
+    {{- include "platypus.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "platypus.selectorLabels" (dict "root" . "component" "web") | nindent 6 }}
+{{- end }}

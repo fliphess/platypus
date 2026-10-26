@@ -1,0 +1,9 @@
+# The Go tests' backing services (see `make test-deps`): the same containers
+# as the dev stack, in their own compose project (platypus-test), on their own
+# host ports. A test run can never touch a dev stack's data or fight over its
+# ports. Clean up with `make test-clean`.
+services:
+  postgres:
+    ports: !override ["127.0.0.1:55433:5432"]
+  ministack:
+    ports: !override ["127.0.0.1:54567:4566"]

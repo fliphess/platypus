@@ -1,0 +1,185 @@
+name: platypus
+
+# Local development: platypus in test mode against a local AWS emulator with
+# fake data. No AWS account, no login provider, no TLS.
+#
+#   docker compose up --build
+#
+# Then open one of these, each logged in as a different user:
+#   http://admin.localhost:8090   admin@example.com  (complete the bootstrap here)
+#   http://editor.localhost:8090  editor@example.com (give access through a policy)
+#   http://nobody.localhost:8090  nobody@example.com (logged in, no access)
+#
+# The bootstrap token: make dev-bootstrap-token
+#
+# To try oidc mode, add the oidc profile: docker compose --profile oidc up
+# starts a local identity provider (Dex) and a second platypus that logs
+# people in itself, on http://localhost:8094 (see deploy/dev/dex.yaml).
+
+x-platypus-env: &platypus-env
+  PLATYPUS_ENVIRONMENT: local
+  PLATYPUS_TEST_MODE: "true"
+  PLATYPUS_TEST_AWS_ENDPOINT: http://ministack:4566
+  PLATYPUS_PUBLIC_URL: http://admin.localhost:8090
+  PLATYPUS_LOG_LEVEL: debug
+  PLATYPUS_DB_HOST: postgres
+  PLATYPUS_DB_NAME: platypus
+  PLATYPUS_DB_USERNAME: platypus_rw
+  PLATYPUS_DB_PASSWORD: platypus_rw_local
+  PLATYPUS_DB_SSLMODE: disable
+  PLATYPUS_ALLOWED_EMAIL_DOMAINS: example.com
+  # The dev proxy (deploy/dev/nginx.conf) sets the identity header and, for
+  # the editor, a groups header, so group-linked teams can be tried too.
+  PLATYPUS_AUTH_MODE: header
+  PLATYPUS_GROUPS_HEADER: X-Auth-Request-Groups
+  # The public test key; platypus refuses it outside test mode.
+  PLATYPUS_ENCRYPTION_KEY: cGxhdHlwdXMtdGVzdC1rZXktbm90LWZvci1wcm9kISE=
+  PLATYPUS_BLOCK_CONTACT_EMAIL: platform@example.com
+  PLATYPUS_SYNC_INTERVAL: 1m
+  # Most browsers don't accept admin.localhost as a passkey domain; the
+  # browser tests (Chrome) switch passkeys on.
+  PLATYPUS_PASSKEYS_ENABLED: ${PLATYPUS_PASSKEYS_ENABLED:-false}
+  AWS_REGION: eu-west-1
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: platypus
+    # The named volume keeps users, teams, policies and second factors across
+    # restarts; `docker compose down` preserves it, only `down -v` wipes it.
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/migrations/bootstrap/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d platypus"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  flyway:
+    image: flyway/flyway:11
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/platypus
+      FLYWAY_USER: platypus_migrations
+      FLYWAY_PASSWORD: platypus_migrations_local
+      FLYWAY_SCHEMAS: platypus
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: "30"
+    volumes:
+      - ./database/migrations/updates:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ministack:
+    image: ministackorg/ministack:1.5.32
+    environment:
+      SERVICES: ssm,secretsmanager
+      MINISTACK_REGION: eu-west-1
+    ports:
+      - "127.0.0.1:54566:4566"
+
+  # Fills the emulator with fake parameters and secrets.
+  seed:
+    image: amazon/aws-cli:2.38.5
+    entrypoint: ["/bin/sh", "/seed/seed.sh"]
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: eu-west-1
+      AWS_ENDPOINT_URL: http://ministack:4566
+    volumes:
+      - ./deploy/dev/seed.sh:/seed/seed.sh:ro
+    depends_on:
+      ministack:
+        condition: service_healthy
+
+  web:
+    build: .
+    command: ["web"]
+    environment: *platypus-env
+    # Dev convenience: templates, styles and docs come straight from the repo,
+    # so an edit shows up on the next page load (templates are parsed at
+    # startup: `docker compose restart web` after template changes).
+    volumes:
+      - ./internal/web/templates:/app/templates:ro
+      - ./internal/web/static:/app/static:ro
+      - ./internal/docs/pages:/app/docs:ro
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    command: ["worker"]
+    environment: *platypus-env
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+
+  # Stands in for the gateway and oauth2-proxy; see deploy/dev/nginx.conf.
+  dev-proxy:
+    image: nginx:1.29-alpine
+    volumes:
+      - ./deploy/dev/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/dev/50x.html:/usr/share/nginx/html/50x.html:ro
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      - web
+
+  # --- oidc profile: platypus logging people in itself, with Dex ---
+
+  dex:
+    profiles: [oidc]
+    image: ghcr.io/dexidp/dex:v2.44.0
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./deploy/dev/dex.yaml:/etc/dex/config.yaml:ro
+    ports:
+      - "127.0.0.1:5556:5556"
+
+  web-oidc:
+    profiles: [oidc]
+    build: .
+    command: ["web"]
+    environment:
+      <<: *platypus-env
+      PLATYPUS_AUTH_MODE: oidc
+      # Passkeys need a real domain name, and web-oidc isn't one.
+      PLATYPUS_PASSKEYS_ENABLED: "false"
+      # Browsers reach it as localhost:8094; the browser tests as
+      # oidc.localhost:8080, a name Chromium treats as trustworthy, so it
+      # honours platypus's security headers instead of ignoring them.
+      PLATYPUS_PUBLIC_URL: ${PLATYPUS_OIDC_PUBLIC_URL:-http://localhost:8094}
+      PLATYPUS_OIDC_ISSUER: http://dex:5556/dex
+      PLATYPUS_OIDC_CLIENT_ID: platypus
+      PLATYPUS_OIDC_CLIENT_SECRET: platypus-dev-secret
+    # Same dev convenience as the web service: assets straight from the repo.
+    volumes:
+      - ./internal/web/templates:/app/templates:ro
+      - ./internal/web/static:/app/static:ro
+      - ./internal/docs/pages:/app/docs:ro
+    ports:
+      - "127.0.0.1:8094:8080"
+    depends_on:
+      dex:
+        condition: service_started
+      flyway:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    restart: on-failure
+
+volumes:
+  postgres-data:

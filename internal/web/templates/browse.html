@@ -1,0 +1,105 @@
+{{- define "row-edit"}}
+{{- if or .TerraformManaged .DeletedAt}}
+<span class="button small" aria-disabled="true" title="{{if .DeletedAt}}Restore the secret first{{else}}Managed by Terraform{{end}}">Edit</span>
+{{- else}}
+<a class="button small" href="/{{kindPath .Kind}}/edit?name={{.Name}}" aria-label="Edit {{.Name}}">Edit</a>
+{{- end}}
+{{- end}}
+
+{{define "content"}}
+{{- with .Data}}
+<div class="page-head">
+  <h1>{{.Listing.Kind.Title}}</h1>
+  {{- if .CanCreate}}
+  <a class="button primary" href="/{{kindPath .Listing.Kind}}/new">New {{.Listing.Kind.Noun}}</a>
+  {{- else}}
+  {{template "denied-button" (dict "Label" (printf "New %s" .Listing.Kind.Noun) "Reason" (printf "None of your policies allow creating %s." .Listing.Kind.PluralNoun))}}
+  {{- end}}
+</div>
+
+{{- if .Blocked}}
+<div class="alert warning">
+  <p><strong>Platypus is blocked.</strong> An admin has switched access off for everyone, so no
+  {{.Listing.Kind.PluralNoun}} can be listed, opened, changed or revealed until it is unblocked.</p>
+  <p class="muted small">Admins unblock it on the Admin overview.</p>
+</div>
+{{- else if not .HasAccess}}
+<div class="alert info">
+  <p>You don't have access to any {{.Listing.Kind.PluralNoun}} yet.</p>
+  <p>Ask an admin to give you a policy, or read <a href="/docs">the docs</a> to see how access works.</p>
+</div>
+{{- else}}
+<form class="search-bar" method="get" action="/{{kindPath .Listing.Kind}}"
+      hx-get="/{{kindPath .Listing.Kind}}" hx-target="#results" hx-select="#results" hx-swap="outerHTML" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:find input[name=q], submit">
+  <input type="search" name="q" value="{{.Listing.Search}}" placeholder="Search by name, path, description or note" aria-label="Search" autofocus>
+  <button type="submit">Search</button>
+</form>
+{{template "results" .}}
+{{- end}}
+{{- end}}
+{{end}}
+
+{{define "results"}}
+{{- with .Listing}}
+<div id="results">
+  <div class="card">
+  {{- if not .Items}}
+  <p class="muted">{{if .Search}}Nothing matches “{{.Search}}”.{{else}}Nothing here that you can see.{{end}}</p>
+  {{- else}}
+  <div class="item-columns" aria-hidden="true">
+    <span>Name</span><span>Type</span><span>State</span><span>Note</span><span>Changed</span><span class="head-edit">Edit</span>
+  </div>
+  <ul class="events">
+    {{- range .Items}}
+    <li class="item-row">
+      <details class="event">
+        <summary class="item-grid">
+          <span class="mono item-name" title="{{.Name}}">{{breakPath .Name}}</span>
+          <span class="type-cell">{{with .SSMType}}<span class="badge">{{.}}</span>{{else}}<span class="muted">secret</span>{{end}}</span>
+          <span class="state-cell">
+            {{- if .DeletedAt}}<span class="badge danger">deleted</span>{{end}}
+            {{- if .TerraformManaged}}<span class="badge terraform">Terraform</span>{{end}}
+            {{- if .RotationEnabled}}<span class="badge warn">rotation</span>{{end}}
+          </span>
+          <span class="note-cell">{{if .HasNote}}<span class="badge note" title="Has a note">note</span>{{end}}</span>
+          <span class="event-time">{{time .LastModified}}</span>
+        </summary>
+        <div class="event-body">
+          <dl class="facts">
+            <dt>Path</dt><dd class="mono path-value" title="{{.Name}}">{{breakPath .Name}}</dd>
+            <dt>Description</dt><dd>{{with .Description}}{{.}}{{else}}<span class="muted">none</span>{{end}}</dd>
+            {{- if eq .Kind "ssm"}}
+            <dt>Type</dt><dd><span class="badge">{{.SSMType}}</span></dd>
+            <dt>Tier</dt><dd><span class="badge">{{.SSMTier}}</span></dd>
+            {{- else}}
+            <dt>Type</dt><dd><span class="badge">secret</span></dd>
+            {{- end}}
+            {{- if eq .Kind "secret"}}
+            <dt>Rotation</dt><dd>{{if .RotationEnabled}}enabled{{else}}off{{end}}</dd>
+            <dt>ARN</dt><dd class="mono small">{{.SecretARN}}</dd>
+            {{- end}}
+            <dt class="only-narrow">Action</dt>
+            <dd class="only-narrow">{{template "row-edit" .}}</dd>
+            <dt>Last changed</dt><dd>{{time .LastModified}}</dd>
+            {{- if .TerraformManaged}}<dt>Managed by</dt><dd>Terraform</dd>{{end}}
+            {{- if .DeletedAt}}<dt>Deleted</dt><dd>{{time .DeletedAt}}</dd>{{end}}
+          </dl>
+        </div>
+      </details>
+      <span class="row-edit">{{template "row-edit" .}}</span>
+    </li>
+    {{- end}}
+  </ul>
+  {{- end}}
+  </div>
+  {{- if .Items}}
+  <nav class="pager" aria-label="Pages">
+    <span class="muted small">{{.First}}–{{.Last}} of {{.Total}}</span>
+    {{- with $.PreviousLink}}<a class="button" href="{{.}}">Previous</a>{{end}}
+    {{- with $.NextLink}}<a class="button" href="{{.}}">Next</a>{{end}}
+  </nav>
+  {{- end}}
+</div>
+{{- end}}
+{{end}}

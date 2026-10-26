@@ -1,0 +1,66 @@
+{{define "content"}}
+{{- with .Data}}
+<h1>Set up platypus</h1>
+<p class="muted">Platypus is not set up yet. Until it is, it does nothing else.</p>
+
+<ol class="card steps">
+  <li{{if eq .Step 1}} aria-current="step"{{end}}>Enter the bootstrap token</li>
+  <li{{if eq .Step 2}} aria-current="step"{{end}}>Set up a second factor</li>
+  <li{{if eq .Step 3}} aria-current="step"{{end}}>Save your recovery codes</li>
+  <li{{if eq .Step 4}} aria-current="step"{{end}}>Finish</li>
+</ol>
+
+{{- if eq .Step 1}}
+<div class="card">
+  <h2>1. Bootstrap token</h2>
+  <p>Platypus wrote a one-time token to the SSM parameter <code>{{.TokenParam}}</code> in this AWS account. Copy it from the AWS console or CLI:</p>
+  <pre>aws ssm get-parameter --with-decryption --name {{.TokenParam}} --query Parameter.Value --output text</pre>
+  <p>Whoever enters it becomes the first admin, so only people with access to SSM can do this.</p>
+  <form hx-post="/bootstrap/token" hx-target="find .messages" method="post" action="/bootstrap/token">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <label for="token">Token</label>
+    <input id="token" type="text" name="token" autocomplete="off" spellcheck="false" required>
+    <div class="messages"></div>
+    <div class="actions"><button class="primary" type="submit">Continue</button></div>
+  </form>
+</div>
+{{- else if eq .Step 2}}
+<div class="card">
+  <h2>2. Second factor</h2>
+  <p>Admin mode needs an authenticator app{{if .Passkeys}} or a passkey{{end}}. Set up at least one.</p>
+  <div id="totp">
+    <button hx-post="/me/security/totp" hx-target="#totp">Set up an authenticator app</button>
+  </div>
+  {{- if .Passkeys}}
+  <h3>Or a passkey</h3>
+  <label for="passkey-name">Name for the passkey</label>
+  <input id="passkey-name" type="text" maxlength="60">
+  <p id="passkey-messages" class="alert error" hidden></p>
+  <div class="actions">
+    <button type="button" data-passkey="register" data-messages="passkey-messages"
+            data-begin="/me/security/passkeys/begin" data-finish="/me/security/passkeys/finish">Add a passkey</button>
+  </div>
+  {{- end}}
+</div>
+{{- else if eq .Step 3}}
+<div class="card">
+  <h2>3. Recovery codes</h2>
+  <p>Recovery codes let you into admin mode when you lose your second factor.</p>
+  <form method="post" action="/me/security/recovery-codes">
+    {{template "csrf" $.Viewer.Session.CSRFToken}}
+    <button class="primary" type="submit">Create recovery codes</button>
+  </form>
+</div>
+{{- else}}
+<div class="card">
+  <h2>4. Finish</h2>
+  <p>You become the first member of the admin group. Platypus creates a few default policies, assigned to nobody.</p>
+  <form hx-post="/bootstrap/complete" hx-target="find .messages" method="post" action="/bootstrap/complete">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+    <div class="messages"></div>
+    <button class="primary" type="submit">Finish setup</button>
+  </form>
+</div>
+{{- end}}
+{{- end}}
+{{end}}

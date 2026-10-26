@@ -1,0 +1,89 @@
+{{define "content"}}
+{{- with .Data}}{{$kind := kindPath .Kind}}
+<nav class="breadcrumbs"><a href="/{{$kind}}">{{.Kind.Title}}</a>{{if not .IsNew}} / <a href="/{{$kind}}/item?name={{.Name}}">{{.Name}}</a>{{end}}</nav>
+<h1>{{if .IsNew}}New {{.Kind.Noun}}{{else}}Edit {{.Kind.Noun}}{{end}}</h1>
+
+{{- with .Note}}
+<div class="alert note"><strong>Note</strong> <span class="muted small">by {{.UpdatedBy}}</span>
+{{.Body}}</div>
+{{- end}}
+
+<form id="item-form" class="card" hx-post="/{{$kind}}/{{if .IsNew}}new{{else}}edit{{end}}/preview" hx-target="#dialog-content" method="post" action="/{{$kind}}/{{if .IsNew}}new{{else}}edit{{end}}/preview">
+{{template "csrf" $.Viewer.Session.CSRFToken}}
+  {{- if .IsNew}}
+  <label for="name">Name</label>
+  <input id="name" type="text" name="name" required autocomplete="off" spellcheck="false" value="{{.Name}}">
+  <p class="field-hint">{{if eq .Kind "ssm"}}For example <code>/team/app/setting</code>. Names start with a slash.{{else}}For example <code>team/app/database</code>.{{end}}</p>
+  {{- if .CreateAll}}
+  <p class="field-hint">You can create any {{.Kind.Noun}} name.</p>
+  {{- else if .CreatePatterns}}
+  <p class="field-hint">You can create {{.Kind.PluralNoun}} matching
+    {{range .CreatePatterns}}<code>{{.}}</code> {{end}}</p>
+  {{- end}}
+  {{- else}}
+  <input type="hidden" name="name" value="{{.Name}}">
+  <input type="hidden" name="expect_version" value="{{.Version}}">
+  <p class="mono">{{.Name}}</p>
+  {{- end}}
+
+  <label for="description">Description</label>
+  <input id="description" type="text" name="description" maxlength="1024" value="{{.Description}}">
+  <p class="field-hint">Optional.</p>
+
+  {{- if eq .Kind "ssm"}}
+  <label for="ssm_type">Type</label>
+  <select id="ssm_type" name="ssm_type">
+    {{- range .SSMTypes}}<option value="{{.}}"{{if eq . $.Data.SSMType}} selected{{end}}>{{.}}</option>{{end}}
+  </select>
+  <label for="ssm_tier">Tier</label>
+  <select id="ssm_tier" name="ssm_tier">
+    {{- range .SSMTiers}}<option value="{{.}}"{{if eq . $.Data.SSMTier}} selected{{end}}>{{.}}</option>{{end}}
+  </select>
+  <p class="field-hint">Standard holds up to 4 KB; Advanced up to 8 KB and costs money.</p>
+  {{- end}}
+
+  {{- if and .IsNew .Teams}}
+  <label for="team">Team</label>
+  <select id="team" name="team">
+    {{- if gt (len .Teams) 1}}<option value="">choose a team</option>{{end}}
+    {{- range .Teams}}<option value="{{.}}">{{.}}</option>{{end}}
+  </select>
+  <p class="field-hint">Goes into the Team tag; policy checks use it too.</p>
+  {{- end}}
+
+  {{template "value-editor" .}}
+
+  <div class="messages"></div>
+  <div class="actions">
+    <button class="primary" type="submit">{{if .IsNew}}Create{{else}}Save{{end}}</button>
+    <a class="button" href="{{if .IsNew}}/{{$kind}}{{else}}/{{$kind}}/item?name={{.Name}}{{end}}">Cancel</a>
+  </div>
+</form>
+{{- end}}
+{{end}}
+
+{{/* The value editor. Swapped in again, filled, by "Load current value". */}}
+{{define "value-editor"}}
+<div data-value-editor>
+  <label>Value
+    {{- if not .IsNew}}{{if .ValueShown}}<span class="hint">current value loaded; change it or leave it as is</span>{{else}}<span class="hint">leave empty to keep the current value</span>{{end}}{{end}}
+  </label>
+  <div class="editor-bar">
+    <div class="segmented" role="radiogroup" aria-label="Editor">
+      <label><input type="radio" name="format" value="text"{{if eq .Format "text"}} checked{{end}}><span>Text</span></label>
+      <label><input type="radio" name="format" value="json"{{if eq .Format "json"}} checked{{end}}><span>JSON</span></label>
+      <label><input type="radio" name="format" value="fields"><span>JSON fields</span></label>
+    </div>
+    {{- if and .CanLoad (not .ValueShown)}}
+    {{- /* Inside the edit form, so htmx sends the form's hidden name field along. */}}
+    <button type="button" hx-post="/{{kindPath .Kind}}/edit/value"
+            hx-target="closest [data-value-editor]" hx-swap="outerHTML">Load current value</button>
+    {{- end}}
+  </div>
+  <p class="alert warning editor-message" hidden></p>
+  <textarea name="value" rows="8" spellcheck="false" autocomplete="off"{{if .IsNew}} required{{end}}
+    placeholder="{{if and (not .IsNew) (not .ValueShown)}}******** (unchanged){{end}}">{{.Value}}</textarea>
+  <div class="field-rows" hidden></div>
+  <button type="button" data-add-field hidden>Add field</button>
+</div>
+{{end}}

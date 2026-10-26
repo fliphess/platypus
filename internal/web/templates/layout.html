@@ -1,0 +1,68 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · Platypus</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v={{.AssetVersion}}">
+  <script src="/static/theme.js?v={{.AssetVersion}}"></script>
+  <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true,"selfRequestsOnly":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
+  {{- with .Viewer}}
+  <meta name="csrf-token" content="{{.Session.CSRFToken}}">
+  {{- end}}
+  <script src="/static/htmx-2.0.11.min.js?v={{.AssetVersion}}" defer></script>
+  <script src="/static/app.js?v={{.AssetVersion}}" defer></script>
+</head>
+<body data-timezone="{{with .Viewer}}{{.User.Timezone}}{{else}}utc{{end}}"{{with .Viewer}} hx-headers='{"X-CSRF-Token": "{{.Session.CSRFToken}}"}'{{end}}>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="/"><img src="/static/logo.svg" alt="">Platypus</a>
+      {{- with .Viewer}}{{if .State.Bootstrapped}}
+      <nav class="tabs" aria-label="Main">
+        <a href="/ssm"{{if eq $.Tab "ssm"}} class="active"{{end}}>SSM parameters</a>
+        <a href="/secrets"{{if eq $.Tab "secrets"}} class="active"{{end}}>Secrets</a>
+        <a href="/me"{{if eq $.Tab "me"}} class="active"{{end}}>My permissions</a>
+        <a href="/docs"{{if eq $.Tab "docs"}} class="active"{{end}}>Docs</a>
+      </nav>
+      <div class="user">
+        <a href="/me/profile" class="user-name" title="{{.User.Email}}">{{.User.Label}}</a>
+        {{- if .InAdminMode}}
+        <a class="chip" href="/admin" title="Admin">Admin</a>
+        <form method="post" action="/admin/leave" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{.Session.CSRFToken}}">
+          <button type="submit">Leave admin mode</button>
+        </form>
+        {{- else if .User.IsAdmin}}
+        <a class="chip" href="/admin">Admin</a>
+        {{- end}}
+        {{- if $.CanLogout}}
+        <form method="post" action="/auth/logout" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{.Session.CSRFToken}}">
+          <button class="quiet" type="submit">Log out</button>
+        </form>
+        {{- end}}
+      </div>
+      {{- end}}{{end}}
+      <button type="button" class="theme-toggle" data-theme-toggle title="Colour theme">◐ Auto</button>
+    </div>
+  </header>
+  {{- /* One status line, never a stack: the most important state wins.
+         Transient confirmations are toasts (bottom right), not banners. */}}
+  {{- $blocked := false}}{{with .Viewer}}{{if .State.Blocked}}{{$blocked = true}}{{end}}{{end}}
+  {{- if $blocked}}
+  <div class="status-strip warning" role="status">Blocked{{with .Viewer.State.BlockedBy}} by {{.}}{{end}} — only admins can open platypus, and nobody can reveal or change values until an admin unblocks it.</div>
+  {{- else if .TestMode}}
+  <div class="status-strip warning" role="status">Test mode — this platypus runs against a local AWS emulator with fake data.</div>
+  {{- end}}
+  <main>
+    {{- with .Notice}}
+    <div class="toast" data-toast role="status">{{.}}</div>
+    {{- end}}
+    <div class="messages"></div>
+    {{template "content" .}}
+  </main>
+  <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+</body>
+</html>
+{{end}}

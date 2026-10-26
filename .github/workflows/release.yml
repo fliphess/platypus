@@ -1,0 +1,151 @@
+# A release: builds the binaries for every platform, the multi-arch image and
+# the Helm chart, and opens the GitHub release with everything attached.
+# Triggered by pushing a vX.Y.Z tag; see AGENTS.md for the release steps.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # the release
+  packages: write # the image and the chart
+
+jobs:
+  binaries:
+    name: Binaries (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build and package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="platypus_${version}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p "build/${name}"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags="-s -w -X main.version=${version}" \
+            -o "build/${name}/platypus" ./cmd/platypus
+          cp -r internal/docs/pages "build/${name}/docs"
+          cp -r internal/web/templates "build/${name}/templates"
+          cp -r internal/web/static "build/${name}/static"
+          cp LICENSE "build/${name}/"
+          tar -czf "${name}.tar.gz" -C build "${name}"
+          shasum -a 256 "${name}.tar.gz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: platypus_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: platypus_*.tar.gz
+          if-no-files-found: error
+
+  checksums:
+    name: Checksums
+    runs-on: ubuntu-latest
+    needs: binaries
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: sha256 over every archive
+        run: |
+          cd dist
+          shasum -a 256 platypus_*.tar.gz > checksums.txt
+          cat checksums.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: checksums
+          path: dist/checksums.txt
+          if-no-files-found: error
+
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/fliphess/platypus
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - name: Strip the v for the binary version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ env.VERSION }}
+          provenance: true
+          sbom: true
+
+  chart:
+    name: Chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: The chart version must match the tag
+        run: |
+          version="$(sed -n 's/^version: //p' charts/platypus/Chart.yaml)"
+          app_version="$(sed -n 's/^appVersion: "\?\([^"\]*\)"\?/\1/p' charts/platypus/Chart.yaml)"
+          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "charts/platypus/Chart.yaml says ${version}, the tag says ${GITHUB_REF_NAME#v}." >&2
+            echo "Bump version and appVersion in the release commit." >&2
+            exit 1
+          fi
+          if [ "$app_version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "appVersion is ${app_version}, the tag says ${GITHUB_REF_NAME#v}: the chart would pull the previous image." >&2
+            exit 1
+          fi
+      - name: Package and push
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          helm package charts/platypus --destination .
+          helm push "platypus-${version}.tgz" oci://ghcr.io/fliphess/charts
+          docker buildx imagetools create \
+            -t ghcr.io/fliphess/charts/platypus:latest \
+            ghcr.io/fliphess/charts/platypus:"$version"
+
+  release:
+    name: Open the release
+    runs-on: ubuntu-latest
+    needs: [binaries, checksums, image, chart]
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: |
+            dist/platypus_*.tar.gz
+            dist/checksums.txt
+          generate_release_notes: true
