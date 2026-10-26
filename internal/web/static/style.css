@@ -478,7 +478,54 @@ td.mono-cell, .mono-cell {
 /* The opened facts sit under the row, slightly inset so the row stays one unit. */
 .detail-row > td { background: var(--bg); padding: 0.6rem 0.6rem 0.8rem; }
 .detail-row .facts { margin: 0; }
-/* Teams: radio, team, and what that team grants. */
+/* The policy picker: hundreds of policies stay readable — one per line, in a
+   scrolling list, with a filter that hides rows without unselecting them. */
+.picker { margin: 0.6rem 0; }
+.picker-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.45rem;
+}
+.picker-filter { display: flex; flex-direction: column; font-weight: 500; }
+.picker-filter input { min-width: 16rem; }
+.picker-list {
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.picker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0.65rem;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+.picker-row:last-of-type { border-bottom: none; }
+.picker-row:hover { background: var(--bg); }
+.picker-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-meta { white-space: nowrap; }
+.picker-empty { padding: 0.6rem 0.65rem; margin: 0; }
+
+/* Teams: checkbox, policy count, and the team's rules behind a disclosure. */
+.teams-table .team-rules { width: 26rem; }
+.rules-pop summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+.rules-pop summary:hover { text-decoration: underline; }
+.rules-table { margin-top: 0.45rem; }
+.rules-table th, .rules-table td { padding: 0.3rem 0.5rem; vertical-align: top; }
+.rules-table th { font-size: 0.78rem; }
+.rule-pattern { white-space: nowrap; }
+.rule-perms { color: var(--text); }
+.rule-policy { white-space: nowrap; }
 .teams-table .team-cell { white-space: nowrap; }
 .teams-table .team-cell input { margin-right: 0.35rem; }
 .teams-table .team-rules { color: var(--text); }
@@ -623,8 +670,12 @@ dl.facts dd { margin: 0; word-break: break-all; }
 /* Item lists: the shared table spec (top of the tables section) carries the
    column rules; only the list-specific bits live here. */
 
-.pager { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
-.pager span { margin-right: auto; }
+.pager { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+.pager > span:first-child { margin-right: auto; }
+.page-size { display: flex; align-items: center; gap: 0.4rem; }
+.page-steps { display: inline-flex; gap: 0.25rem; }
+.page-step { min-width: 2rem; text-align: center; padding: 0.3rem 0.45rem; }
+.page-step[aria-disabled=true] { opacity: 0.4; cursor: default; }
 
 /* Front page */
 

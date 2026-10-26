@@ -149,7 +149,7 @@ func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 	// Paging links keep the filter; the CSV link above exports all of it.
 	data.Pager = newPager("/admin/audit", "#audit-results",
 		fmt.Sprintf("Page %d of %d · %d events", pageNumber, lastPage, total),
-		r.URL.Query(), pageNumber, lastPage, size)
+		r.URL.Query(), pageNumber, lastPage, size, total)
 	// Filters swap the results in place; the whole page otherwise.
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_audit", "audit-results", data)

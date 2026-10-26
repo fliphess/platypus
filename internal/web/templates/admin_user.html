@@ -47,12 +47,13 @@
 {{template "csrf" $.Viewer.Session.CSRFToken}}
     <table class="teams-table">
       <thead>
-        <tr><th>Team</th><th>Rules of the team</th></tr>
+        <tr><th>Team</th><th>Policies</th><th>Rules</th></tr>
       </thead>
       <tbody>
         {{- range .AllTeams}}{{$team := .}}
         {{- $selected := false}}
         {{- range $data.Detail.Teams}}{{if eq .ID $team.ID}}{{$selected = true}}{{end}}{{end}}
+        {{- $teamRules := index $data.TeamRules $team.ID}}
         <tr>
           <td class="team-cell">
             <input type="checkbox" name="team_id" value="{{.ID}}" id="team-{{.ID}}"
@@ -60,12 +61,25 @@
             <label for="team-{{.ID}}">{{.Name}}</label>
             {{- with .IDPGroup}} <span class="badge">{{.}}</span>{{end}}
           </td>
+          <td class="state-cell">{{.PolicyCount}} {{if eq .PolicyCount 1}}policy{{else}}policies{{end}}</td>
           <td class="team-rules">
-            {{- $hasRules := false}}
-            {{- range $data.Rules}}{{if eq .Source.Team $team.Name}}{{$hasRules = true}}
-            <div class="team-rule"><span class="mono">{{.Pattern}}</span> <span class="muted">{{permissions .Permissions}}</span> <span class="muted">· {{.Source.Policy}}</span></div>
-            {{- end}}{{end}}
-            {{- if not $hasRules}}<span class="muted">no rules</span>{{end}}
+            {{- if $teamRules}}
+            <details class="rules-pop">
+              <summary>{{len $teamRules}} rule{{if ne (len $teamRules) 1}}s{{end}}</summary>
+              <table class="rules-table">
+                <thead><tr><th>Pattern</th><th>Permissions</th><th>Policy</th></tr></thead>
+                <tbody>
+                  {{- range $teamRules}}
+                  <tr>
+                    <td class="mono rule-pattern">{{.Pattern}}</td>
+                    <td class="rule-perms">{{permissions .Permissions}}</td>
+                    <td class="rule-policy muted">{{.Policy}}</td>
+                  </tr>
+                  {{- end}}
+                </tbody>
+              </table>
+            </details>
+            {{- else}}<span class="muted">no rules</span>{{end}}
           </td>
         </tr>
         {{- end}}
@@ -82,14 +96,12 @@
 <div class="card">
   <h2>Policies assigned directly</h2>
   <p class="muted small">For people without a team. Policies through teams are listed below under effective rules.</p>
-  <form hx-post="/admin/users/{{$u.ID}}/policies" hx-target="find .messages" method="post" action="/admin/users/{{$u.ID}}/policies">
-{{template "csrf" $.Viewer.Session.CSRFToken}}
-    {{- range .AllPolicies}}{{$policy := .}}
-    <label class="checkbox"><input type="checkbox" name="policy_id" value="{{.ID}}"{{range $.Data.Detail.Policies}}{{if eq .ID $policy.ID}} checked{{end}}{{end}}> {{.Name}}</label>
-    {{- end}}
-    <div class="messages"></div>
-    <div class="actions"><button type="submit">Save policies</button></div>
-  </form>
+  {{template "policy-picker" (dict
+       "Action" (printf "/admin/users/%d/policies" $u.ID)
+       "ListID" "user-policies"
+       "All" .AllPolicies
+       "Selected" .Detail.Policies
+       "CSRFToken" $.Viewer.Session.CSRFToken)}}
 </div>
 
 <div class="card">

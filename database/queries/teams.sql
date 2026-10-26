@@ -1,5 +1,6 @@
 -- name: ListTeams :many
-SELECT t.*, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+SELECT t.*, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.team_id = t.id) AS policy_count
 FROM teams t
 WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search)
 ORDER BY t.name;
@@ -9,7 +10,8 @@ SELECT count(*) FROM teams t
 WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search);
 
 -- name: ListTeamsPage :many
-SELECT t.*, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+SELECT t.*, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.team_id = t.id) AS policy_count
 FROM teams t
 WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search)
 ORDER BY t.name

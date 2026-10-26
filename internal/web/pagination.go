@@ -40,15 +40,18 @@ func pageNumber(r *http.Request) int {
 // pager is everything a list needs to show where it is and to change the page
 // size. One struct and one template, shared by every list.
 type pager struct {
-	Action   string
-	Target   string
-	Summary  string
-	Page     int
-	LastPage int
-	PerPage  int
-	Sizes    []int
-	PrevLink template.URL
-	NextLink template.URL
+	Action    string
+	Target    string
+	Summary   string
+	Page      int
+	LastPage  int
+	PerPage   int
+	Total     int64
+	Sizes     []int
+	FirstLink template.URL
+	PrevLink  template.URL
+	NextLink  template.URL
+	LastLink  template.URL
 	// Hidden keeps the list's filters in the page-size form.
 	Hidden template.HTML
 }
@@ -97,17 +100,19 @@ func hiddenFilters(values url.Values) template.HTML {
 }
 
 // newPager assembles the controls for a list page.
-func newPager(path, target, summary string, values url.Values, page, lastPage, perPage int) pager {
+func newPager(path, target, summary string, values url.Values, page, lastPage, perPage int, total int64) pager {
 	p := pager{
 		Action: path, Target: target, Summary: summary,
-		Page: page, LastPage: max(lastPage, 1), PerPage: perPage,
+		Page: page, LastPage: max(lastPage, 1), PerPage: perPage, Total: total,
 		Sizes: pageSizes, Hidden: hiddenFilters(values),
 	}
 	if page > 1 {
+		p.FirstLink = listURL(path, values, 1, perPage)
 		p.PrevLink = listURL(path, values, page-1, perPage)
 	}
 	if page < p.LastPage {
 		p.NextLink = listURL(path, values, page+1, perPage)
+		p.LastLink = listURL(path, values, p.LastPage, perPage)
 	}
 	return p
 }

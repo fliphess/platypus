@@ -20,12 +20,12 @@
 {{define "team-list"}}
 <div id="team-list">
   <table>
-    <thead><tr><th>Team</th><th>Members</th><th>Description</th></tr></thead>
+    <thead><tr><th>Team</th><th>Members</th><th>Policies</th><th>Description</th></tr></thead>
     <tbody>
     {{- range .Teams}}
-      <tr><td><a class="cell-name" href="/admin/teams/{{.ID}}" title="{{.Name}}">{{.Name}}</a>{{with .IDPGroup}} <span class="badge" title="Linked to identity-provider group">{{.}}</span>{{end}}</td><td class="nowrap">{{.MemberCount}}</td><td class="description" title="{{.Description}}">{{.Description}}</td></tr>
+      <tr><td><a class="cell-name" href="/admin/teams/{{.ID}}" title="{{.Name}}">{{.Name}}</a>{{with .IDPGroup}} <span class="badge" title="Linked to identity-provider group">{{.}}</span>{{end}}</td><td class="nowrap">{{.MemberCount}}</td><td class="nowrap">{{.PolicyCount}}</td><td class="description" title="{{.Description}}">{{.Description}}</td></tr>
     {{- else}}
-      <tr><td colspan="3" class="muted">{{if $.Search}}No teams match {{printf "%q" $.Search}}.{{else}}No teams yet.{{end}}</td></tr>
+      <tr><td colspan="4" class="muted">{{if $.Search}}No teams match {{printf "%q" $.Search}}.{{else}}No teams yet.{{end}}</td></tr>
     {{- end}}
     </tbody>
   </table>

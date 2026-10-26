@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"platypus/internal/audit"
+	"platypus/internal/authz"
 	"platypus/internal/database"
 	"platypus/internal/db"
 	"platypus/internal/problem"
@@ -286,4 +287,33 @@ func (s *Service) RemoveTeamMember(ctx context.Context, teamID, userID int64) er
 	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionUserTeams, Outcome: audit.Allowed,
 		Details: map[string]any{"user": user.Email, "removed_from": detail.Team.Name}})
 	return nil
+}
+
+// TeamRules returns every team's own rules, keyed by team id. The user page
+// describes teams, not the viewer's effective access, so a team shows its
+// rules whether or not the person being viewed belongs to it.
+func (s *Service) TeamRules(ctx context.Context) (map[int64][]TeamRule, error) {
+	rows, err := s.queries.ListRulesForTeams(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list team rules: %w", err)
+	}
+	rules := map[int64][]TeamRule{}
+	for _, row := range rows {
+		rules[row.TeamID] = append(rules[row.TeamID], TeamRule{
+			Pattern: row.Pattern,
+			Permissions: authz.Permissions{
+				List: row.CanList, Create: row.CanCreate, Edit: row.CanEdit, Reveal: row.CanReveal,
+			},
+			Policy: row.PolicyName,
+		})
+	}
+	return rules, nil
+}
+
+// TeamRule is one rule as a team shows it: what it matches, what it allows
+// and the policy it comes from.
+type TeamRule struct {
+	Pattern     string
+	Permissions authz.Permissions
+	Policy      string
 }

@@ -41,7 +41,7 @@ func (s *Server) browse(kind item.Kind) handlerFunc {
 		}
 		lastPage := int(max((listing.Total+int64(size)-1)/int64(size), 1))
 		summary := fmt.Sprintf("%d–%d of %d", listing.First(), listing.Last(), listing.Total)
-		data.Pager = newPager("/"+kindPath(kind), "#results", summary, query, listing.Page, lastPage, size)
+		data.Pager = newPager("/"+kindPath(kind), "#results", summary, query, listing.Page, lastPage, size, listing.Total)
 		if isHTMX(r) && r.Header.Get("HX-Target") == "results" {
 			s.renderFragment(w, r, http.StatusOK, "browse", "results", data)
 			return nil

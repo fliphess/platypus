@@ -78,16 +78,12 @@
 
 <div class="card">
   <h2>Policies</h2>
-  <form hx-post="/admin/teams/{{$t.ID}}/policies" hx-target="find .messages" method="post" action="/admin/teams/{{$t.ID}}/policies">
-{{template "csrf" $.Viewer.Session.CSRFToken}}
-    {{- range .AllPolicies}}{{$policy := .}}
-    <label class="checkbox"><input type="checkbox" name="policy_id" value="{{.ID}}"{{range $.Data.Detail.Policies}}{{if eq .ID $policy.ID}} checked{{end}}{{end}}> {{.Name}}</label>
-    {{- else}}
-    <p class="muted">No policies yet. <a href="/admin/policies/new">Create one</a>.</p>
-    {{- end}}
-    <div class="messages"></div>
-    <div class="actions"><button type="submit">Save policies</button></div>
-  </form>
+  {{template "policy-picker" (dict
+       "Action" (printf "/admin/teams/%d/policies" $t.ID)
+       "ListID" "team-policies"
+       "All" .AllPolicies
+       "Selected" .Detail.Policies
+       "CSRFToken" $.Viewer.Session.CSRFToken)}}
 </div>
 
 <div class="card">

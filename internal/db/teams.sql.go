@@ -165,7 +165,8 @@ func (q *Queries) ListTeamMembers(ctx context.Context, teamID int64) ([]User, er
 }
 
 const listTeams = `-- name: ListTeams :many
-SELECT t.id, t.name, t.description, t.created_at, t.idp_group, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+SELECT t.id, t.name, t.description, t.created_at, t.idp_group, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.team_id = t.id) AS policy_count
 FROM teams t
 WHERE ($1::text = '' OR t.name ILIKE $1 OR t.description ILIKE $1)
 ORDER BY t.name
@@ -178,6 +179,7 @@ type ListTeamsRow struct {
 	CreatedAt   time.Time
 	IDPGroup    *string
 	MemberCount int64
+	PolicyCount int64
 }
 
 func (q *Queries) ListTeams(ctx context.Context, search string) ([]ListTeamsRow, error) {
@@ -196,6 +198,7 @@ func (q *Queries) ListTeams(ctx context.Context, search string) ([]ListTeamsRow,
 			&i.CreatedAt,
 			&i.IDPGroup,
 			&i.MemberCount,
+			&i.PolicyCount,
 		); err != nil {
 			return nil, err
 		}
@@ -208,7 +211,8 @@ func (q *Queries) ListTeams(ctx context.Context, search string) ([]ListTeamsRow,
 }
 
 const listTeamsPage = `-- name: ListTeamsPage :many
-SELECT t.id, t.name, t.description, t.created_at, t.idp_group, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+SELECT t.id, t.name, t.description, t.created_at, t.idp_group, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.team_id = t.id) AS policy_count
 FROM teams t
 WHERE ($1::text = '' OR t.name ILIKE $1 OR t.description ILIKE $1)
 ORDER BY t.name
@@ -228,6 +232,7 @@ type ListTeamsPageRow struct {
 	CreatedAt   time.Time
 	IDPGroup    *string
 	MemberCount int64
+	PolicyCount int64
 }
 
 func (q *Queries) ListTeamsPage(ctx context.Context, arg ListTeamsPageParams) ([]ListTeamsPageRow, error) {
@@ -246,6 +251,7 @@ func (q *Queries) ListTeamsPage(ctx context.Context, arg ListTeamsPageParams) ([
 			&i.CreatedAt,
 			&i.IDPGroup,
 			&i.MemberCount,
+			&i.PolicyCount,
 		); err != nil {
 			return nil, err
 		}

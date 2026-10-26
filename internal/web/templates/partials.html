@@ -111,7 +111,7 @@
 {{/* The pager every list uses: where you are, how many rows to show, and the
        way to the neighbouring pages. One definition, so no list drifts. */}}
 {{define "pager"}}
-{{- if gt .LastPage 1}}
+{{- if gt .Total 0}}
 <nav class="pager" aria-label="Pages">
   <span class="muted small">{{.Summary}}</span>
   <form class="page-size" method="get" action="{{.Action}}">
@@ -125,8 +125,46 @@
     </label>
     <noscript><button type="submit">Apply</button></noscript>
   </form>
-  {{- with .PrevLink}}<a class="button" href="{{.}}">Previous</a>{{end}}
-  {{- with .NextLink}}<a class="button" href="{{.}}">Next</a>{{end}}
+  <span class="page-steps" role="group" aria-label="Page navigation">
+    {{- if .FirstLink}}<a class="button page-step" href="{{.FirstLink}}" aria-label="First page" title="First page">&laquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="First page" title="First page">&laquo;</span>{{end}}
+    {{- if .PrevLink}}<a class="button page-step" href="{{.PrevLink}}" aria-label="Previous page" title="Previous page">&lsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Previous page" title="Previous page">&lsaquo;</span>{{end}}
+    {{- if .NextLink}}<a class="button page-step" href="{{.NextLink}}" aria-label="Next page" title="Next page">&rsaquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Next page" title="Next page">&rsaquo;</span>{{end}}
+    {{- if .LastLink}}<a class="button page-step" href="{{.LastLink}}" aria-label="Last page" title="Last page">&raquo;</a>{{else}}<span class="button page-step" aria-disabled="true" aria-label="Last page" title="Last page">&raquo;</span>{{end}}
+  </span>
 </nav>
 {{- end}}
+{{end}}
+
+{{/* The policy picker: one policy per line, with a filter for deployments with
+       hundreds of them. Data: Action, ListID, All, Selected, CSRFToken. */}}
+{{define "policy-picker"}}
+<form hx-post="{{.Action}}" hx-target="find .messages" method="post" action="{{.Action}}">
+  {{template "csrf" .CSRFToken}}
+  {{- if .All}}
+  <div class="picker">
+    <div class="picker-head">
+      <label class="picker-filter">Filter
+        <input type="search" data-filter-target="#{{.ListID}}" placeholder="Type to narrow the list" autocomplete="off" aria-label="Filter policies">
+      </label>
+      <span class="muted small">{{len .Selected}} of {{len .All}} selected</span>
+    </div>
+    <div class="picker-list" id="{{.ListID}}">
+      {{- range .All}}{{$policy := .}}
+      {{- $selected := false}}
+      {{- range $.Selected}}{{if eq .ID $policy.ID}}{{$selected = true}}{{end}}{{end}}
+      <label class="picker-row" data-filter-item>
+        <input type="checkbox" name="policy_id" value="{{.ID}}"{{if $selected}} checked{{end}}>
+        <span class="picker-name">{{.Name}}</span>
+        <span class="picker-meta muted small">{{if .RuleCount}}{{.RuleCount}} rules{{else}}no rules{{end}}</span>
+      </label>
+      {{- end}}
+      <p class="picker-empty muted small" hidden>No policy matches that filter.</p>
+    </div>
+  </div>
+  <div class="messages"></div>
+  <div class="actions"><button type="submit">Save policies</button></div>
+  {{- else}}
+  <p class="muted">No policies yet. <a href="/admin/policies/new">Create one</a>.</p>
+  {{- end}}
+</form>
 {{end}}

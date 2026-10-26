@@ -81,6 +81,15 @@ ORDER BY t.name;
 
 -- Every rule that applies to a user: through policies assigned to the user
 -- directly (team_name is empty) and through the user's teams.
+-- name: ListRulesForTeams :many
+SELECT t.id AS team_id, r.kind, r.pattern, r.can_list, r.can_create, r.can_edit, r.can_reveal,
+       p.name AS policy_name
+FROM teams t
+INNER JOIN team_policies tp ON t.id = tp.team_id
+INNER JOIN policies p ON tp.policy_id = p.id
+INNER JOIN policy_rules r ON p.id = r.policy_id
+ORDER BY t.name, p.name, r.kind, r.pattern;
+
 -- name: ListRulesForUser :many
 SELECT r.kind, r.pattern, r.can_list, r.can_create, r.can_edit, r.can_reveal,
        p.name AS policy_name, ''::text AS team_name

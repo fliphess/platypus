@@ -192,8 +192,10 @@ await step("a group-linked team takes its members from the login", async () => {
   const teams = await page.evaluate(() => {
     const table = document.querySelector(".teams-table");
     if (!table) return { error: "no teams table" };
-    const heads = Array.from(table.querySelectorAll("thead th"));
-    const cells = Array.from(table.querySelectorAll("tbody tr:first-child td"));
+    // Only the teams table's own row: the rules disclosure holds a nested
+    // table whose headers must not be counted here.
+    const heads = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
+    const cells = Array.from(table.querySelectorAll(":scope > tbody > tr:first-child > td"));
     return {
       headers: heads.length,
       cells: cells.length,
@@ -201,9 +203,28 @@ await step("a group-linked team takes its members from the login", async () => {
       aligned: heads.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2),
     };
   });
-  if (teams.error || teams.headers !== 2 || teams.cells !== 2 || teams.checkboxes < 1 || !teams.aligned) {
-    throw new Error(`the teams card is not a checkbox/team/rules table: ${JSON.stringify(teams)}`);
+  if (teams.error || teams.headers !== 3 || teams.cells !== 3 || teams.checkboxes < 1 || !teams.aligned) {
+    throw new Error(`the teams card is not a checkbox/policies/rules table: ${JSON.stringify(teams)}`);
   }
+  // The policy picker is one policy per line, not a run of labels.
+  const picker = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll("#user-policies .picker-row"));
+    return {
+      rows: rows.length,
+      onePerLine: rows.every((row) => row.getBoundingClientRect().width > 200),
+      filter: Boolean(document.querySelector('#user-policies')?.parentElement?.querySelector('[data-filter-target="#user-policies"]')),
+    };
+  });
+  if (picker.rows < 1 || !picker.onePerLine || !picker.filter) {
+    throw new Error(`the policy picker is not a filterable list: ${JSON.stringify(picker)}`);
+  }
+  // Rules live behind a disclosure and read as a table.
+  await page.click(".rules-pop summary");
+  const rules = await page.evaluate(() => {
+    const table = document.querySelector(".rules-pop .rules-table");
+    return table ? table.querySelectorAll("tbody tr").length : 0;
+  });
+  if (rules < 1) throw new Error("the team's rules do not open into a table");
 
   // The team page says where members come from and offers no manual changes.
   await page.goto(base + teamURL);

@@ -50,6 +50,24 @@
     });
   });
 
+  // Filtering a long picker only hides rows: a checked row that is filtered
+  // out stays checked, so nothing silently loses its selection.
+  document.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-filter-target]");
+    if (!input) return;
+    const list = document.querySelector(input.dataset.filterTarget);
+    if (!list) return;
+    const term = input.value.trim().toLowerCase();
+    let shown = 0;
+    list.querySelectorAll("[data-filter-item]").forEach((row) => {
+      const match = term === "" || row.textContent.toLowerCase().includes(term);
+      row.hidden = !match;
+      if (match) shown += 1;
+    });
+    const empty = list.querySelector(".picker-empty");
+    if (empty) empty.hidden = shown > 0;
+  });
+
   document.addEventListener("click", (event) => {
     if (event.target.closest("[data-dismiss]")) {
       event.preventDefault();

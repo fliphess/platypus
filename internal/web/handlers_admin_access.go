@@ -56,7 +56,7 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) error {
 		Total: total, Page: pageNumber, LastPage: lastPage, ReturnTo: usersReturnTo(filter, pageNumber)}
 	data.Pager = newPager("/admin/users", "#user-list",
 		fmt.Sprintf("Page %d of %d · %d users", pageNumber, lastPage, total),
-		r.URL.Query(), pageNumber, lastPage, size)
+		r.URL.Query(), pageNumber, lastPage, size, total)
 	if pageNumber > 1 {
 		data.PrevPage = &[]int{pageNumber - 1}[0]
 	}
@@ -102,8 +102,11 @@ func usersReturnTo(filter access.UserFilter, page int) string {
 }
 
 type userData struct {
-	Detail      access.UserDetail
-	Rules       []authz.Rule
+	Detail access.UserDetail
+	Rules  []authz.Rule
+	// TeamRules groups each team's own rules, whether or not this user is in
+	// that team: the card describes the team, not the viewer.
+	TeamRules   map[int64][]access.TeamRule
 	AllTeams    []db.ListTeamsRow
 	AllPolicies []db.ListPoliciesRow
 	IsSelf      bool
@@ -130,9 +133,14 @@ func (s *Server) adminUser(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	teamRules, err := s.services.Access.TeamRules(r.Context())
+	if err != nil {
+		return err
+	}
 	data := userData{
 		Detail: detail, Rules: rules, AllTeams: teams, AllPolicies: policies,
-		IsSelf: id == viewerFrom(r.Context()).User.ID,
+		TeamRules: teamRules,
+		IsSelf:    id == viewerFrom(r.Context()).User.ID,
 	}
 	s.render(w, r, http.StatusOK, "admin_user", page{Title: detail.User.Label(), Tab: "admin", Data: data})
 	return nil
@@ -237,7 +245,7 @@ func (s *Server) adminTeams(w http.ResponseWriter, r *http.Request) error {
 	data := teamsData{Teams: teams, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
 	data.Pager = newPager("/admin/teams", "#team-list",
 		fmt.Sprintf("Page %d of %d · %d teams", pageNumber, lastPage, total),
-		r.URL.Query(), pageNumber, lastPage, size)
+		r.URL.Query(), pageNumber, lastPage, size, total)
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_teams", "team-list", data)
 		return nil
@@ -436,7 +444,7 @@ func (s *Server) adminPolicies(w http.ResponseWriter, r *http.Request) error {
 	data := policiesData{Policies: policies, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
 	data.Pager = newPager("/admin/policies", "#policy-list",
 		fmt.Sprintf("Page %d of %d · %d policies", pageNumber, lastPage, total),
-		r.URL.Query(), pageNumber, lastPage, size)
+		r.URL.Query(), pageNumber, lastPage, size, total)
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_policies", "policy-list", data)
 		return nil

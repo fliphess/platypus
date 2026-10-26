@@ -50,7 +50,7 @@ func TestPagerLinksKeepFilters(t *testing.T) {
 		t.Errorf("default page size should not be in the URL: %s", same)
 	}
 
-	p := newPager("/ssm", "#results", "1–50 of 60", values, 1, 2, DefaultPageSize)
+	p := newPager("/ssm", "#results", "1–50 of 60", values, 1, 2, DefaultPageSize, 60)
 	if p.PrevLink != "" {
 		t.Errorf("the first page has a previous link: %s", p.PrevLink)
 	}
@@ -66,7 +66,7 @@ func TestPagerLinksKeepFilters(t *testing.T) {
 // Values in hidden inputs are escaped: they come from the query string.
 func TestPagerEscapesHiddenFilters(t *testing.T) {
 	values := url.Values{"q": {`"><script>alert(1)</script>`}}
-	p := newPager("/ssm", "#results", "", values, 1, 2, DefaultPageSize)
+	p := newPager("/ssm", "#results", "", values, 1, 2, DefaultPageSize, 1)
 	if strings.Contains(string(p.Hidden), "<script>") {
 		t.Errorf("a filter value escaped into HTML: %s", p.Hidden)
 	}
