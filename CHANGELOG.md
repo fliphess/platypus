@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.1.1 — 2026-10-26
+
+Hardening and polish after the first release.
+
+### Changing behaviour
+
+- A description is required when creating or editing a parameter or secret:
+  it is what colleagues see in the list.
+- Destructive actions now ask first: removing an authenticator app or a
+  passkey, replacing recovery codes, disabling an account, removing someone
+  from a team and deleting a team.
+- A description form is tied to the description it showed, so two people
+  editing the same item's metadata no longer overwrite each other silently.
+- The Terraform management tags match regardless of case, and
+  `docs/deployment-checklist.md` now explains the tag convention and the
+  `ssm:ListTagsForResource` requirement behind it.
+
+### Security and correctness
+
+- Passkey ceremonies are single-use: a finish takes the ceremony in one
+  statement, so two concurrent finishes cannot validate the same challenge.
+- Issuing recovery codes locks the user, so two batches can't both stay valid;
+  TOTP time steps are bound to the credential that was validated.
+- Setting a user's policies or teams (or a team's policies) locks the row and
+  reads the current set inside the transaction; the last-admin check happens
+  under the admin lock.
+- State changes and their audit events commit together: the block switch,
+  sync requests, bootstrap completion and identity-provider group sync.
+  Partial secret writes are recorded as such instead of vanishing.
+- A sync that started before an edit can no longer put the old metadata back
+  when it finishes (newer observations win).
+- The audit CSV is built before the response starts, so a failed query can't
+  append an HTML error page to a CSV; a worker job that panics is contained
+  and retried instead of stopping the loop; a failed health listener closes
+  its sibling listener.
+- List pages load notes only for the rows they show, services bound page
+  sizes and offsets themselves, and the audit user picker is capped.
+
+### Packaging
+
+- The chart can pin the image by digest, gives pods a startup probe budget
+  and allows the EKS Pod Identity link-local egress path.
+- `deploy/dev/seed.sh` accepts `PLATYPUS_SEED_BULK` to seed many parameters
+  for trying lists and search.
+
 ## 0.1.0 — 2026-10-26
 
 First release.

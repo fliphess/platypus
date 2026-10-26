@@ -2,8 +2,8 @@ apiVersion: v2
 name: platypus
 description: A web UI to manage AWS SSM parameters and Secrets Manager secrets without giving people AWS access
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.1
+appVersion: "0.1.1"
 home: https://github.com/fliphess/platypus
 sources:
   - https://github.com/fliphess/platypus
