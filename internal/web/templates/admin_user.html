@@ -64,24 +64,29 @@
           <td class="state-cell">{{.PolicyCount}} {{if eq .PolicyCount 1}}policy{{else}}policies{{end}}</td>
           <td class="team-rules">
             {{- if $teamRules}}
-            <details class="rules-pop">
-              <summary>{{len $teamRules}} rule{{if ne (len $teamRules) 1}}s{{end}}</summary>
-              <table class="rules-table">
-                <thead><tr><th>Pattern</th><th>Permissions</th><th>Policy</th></tr></thead>
-                <tbody>
-                  {{- range $teamRules}}
-                  <tr>
-                    <td class="mono rule-pattern">{{.Pattern}}</td>
-                    <td class="rule-perms">{{permissions .Permissions}}</td>
-                    <td class="rule-policy muted">{{.Policy}}</td>
-                  </tr>
-                  {{- end}}
-                </tbody>
-              </table>
-            </details>
+            <button type="button" class="link-button" data-row-toggle aria-expanded="false"
+                    aria-controls="team-rules-{{.ID}}">{{len $teamRules}} rule{{if ne (len $teamRules) 1}}s{{end}}</button>
             {{- else}}<span class="muted">no rules</span>{{end}}
           </td>
         </tr>
+        {{- if $teamRules}}
+        <tr class="detail-row" id="team-rules-{{.ID}}" hidden>
+          <td colspan="3">
+            <table class="rules-table">
+              <thead><tr><th>Pattern</th><th>Permissions</th><th>Policy</th></tr></thead>
+              <tbody>
+                {{- range $teamRules}}
+                <tr>
+                  <td class="mono rule-pattern">{{.Pattern}}</td>
+                  <td class="rule-perms">{{permissions .Permissions}}</td>
+                  <td class="rule-policy muted">{{.Policy}}</td>
+                </tr>
+                {{- end}}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+        {{- end}}
         {{- end}}
       </tbody>
     </table>

@@ -521,9 +521,21 @@ td.mono-cell, .mono-cell {
 .picker-empty { padding: 0.6rem 0.65rem; margin: 0; }
 
 /* Teams: checkbox, policy count, and the team's rules behind a disclosure. */
-.teams-table .team-rules { width: 26rem; }
-.rules-pop summary { cursor: pointer; color: var(--accent); font-weight: 500; }
-.rules-pop summary:hover { text-decoration: underline; }
+.teams-table .team-rules { width: 9rem; }
+/* A quiet text button that opens a row, used where a chevron would crowd. */
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover { text-decoration: underline; }
+/* The rules row spans the table, so twenty rules read as a table rather than
+   squeezing a column. */
+.rules-table th, .rules-table td { padding: 0.35rem 0.6rem; }
+.rules-table th:first-child, .rules-table td:first-child { padding-left: 0; }
 .rules-table { margin-top: 0.45rem; }
 .rules-table th, .rules-table td { padding: 0.3rem 0.5rem; vertical-align: top; }
 .rules-table th { font-size: 0.78rem; }
@@ -1081,7 +1093,7 @@ dialog h2 { margin-top: 0; }
 /* The docs article uses the same width as the admin views' content, so the
    page doesn't jump between sections. Line length is bounded by the layout,
    not by a separate measure. */
-.docs article { max-width: none; }
+.docs article { max-width: none; margin-bottom: 0; }
 .docs article p { line-height: 1.6; }
 .docs article h2 { margin: 1.7rem 0 0.4rem; font-size: 1.02rem; }
 .docs article ul { margin: 0.5rem 0; padding-left: 1.4rem; }

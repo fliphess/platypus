@@ -237,13 +237,26 @@ await step("a group-linked team takes its members from the login", async () => {
   if (picker.rows < 1 || !picker.onePerLine || !picker.filter) {
     throw new Error(`the policy picker is not a filterable list: ${JSON.stringify(picker)}`);
   }
-  // Rules live behind a disclosure and read as a table.
-  await page.click(".rules-pop summary");
-  const rules = await page.evaluate(() => {
-    const table = document.querySelector(".rules-pop .rules-table");
-    return table ? table.querySelectorAll("tbody tr").length : 0;
-  });
-  if (rules < 1) throw new Error("the team's rules do not open into a table");
+  // Rules open as a full-width row beneath the team, not inside its cell.
+  const rulesToggle = page.locator("[data-row-toggle][aria-controls^='team-rules-']").first();
+  const rulesRowId = await rulesToggle.getAttribute("aria-controls");
+  await rulesToggle.click();
+  const rules = await page.evaluate((id) => {
+    const row = document.getElementById(id);
+    const table = row?.querySelector(".rules-table");
+    return {
+      hidden: row?.hasAttribute("hidden"),
+      spans: row?.querySelector("td")?.getAttribute("colspan"),
+      rows: table ? table.querySelectorAll("tbody tr").length : 0,
+      width: row?.querySelector("td")?.clientWidth ?? 0,
+      tableWidth: table ? Math.round(table.getBoundingClientRect().width) : 0,
+    };
+  }, rulesRowId);
+  // The table fills the cell's content box: the small difference is the cell
+  // padding on either side.
+  if (rules.hidden || rules.spans !== "3" || rules.rows < 1 || rules.tableWidth < rules.width - 30) {
+    throw new Error(`the team's rules row is not a full-width table: ${JSON.stringify(rules)}`);
+  }
 
   // The team page says where members come from and offers no manual changes.
   await page.goto(base + teamURL);
@@ -469,6 +482,14 @@ await step("audit trail: filters apply as you change them", async () => {
 });
 
 await step("docs", async () => {
+  await page.goto(base + "/docs");
+  await page.waitForSelector(".docs nav");
+  const docsAlign = await page.evaluate(() => {
+    const nav = document.querySelector(".docs nav").getBoundingClientRect();
+    const article = document.querySelector(".docs article").getBoundingClientRect();
+    return { diff: Math.round(article.bottom - nav.bottom), navBottom: Math.round(nav.bottom), articleBottom: Math.round(article.bottom) };
+  });
+  if (docsAlign.diff < 0) throw new Error(`the docs article is shorter than its navigation: ${JSON.stringify(docsAlign)}`);
   await page.goto(base + "/docs/working-with-values");
   await page.waitForSelector("h1:has-text('Working with values')");
   await shot(page, "10-docs");
