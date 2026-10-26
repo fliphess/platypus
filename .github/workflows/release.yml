@@ -6,6 +6,17 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  # A dry run builds the binaries, image and chart and publishes nothing.
+  # It exists so the pipeline can be proven before the first real tag.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, without the v (for example 0.1.0)"
+        required: true
+      dry_run:
+        description: "Build every artifact and publish nothing"
+        type: boolean
+        default: true
 
 permissions:
   contents: write # the release
@@ -19,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require a successful CI run for this commit
+        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -46,9 +58,15 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Resolve the version
+        id: v
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ]; then version="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build and package
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${{ steps.v.outputs.version }}"
           name="platypus_${version}_${{ matrix.goos }}_${{ matrix.goarch }}"
           mkdir -p "build/${name}"
           CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
@@ -99,6 +117,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve the version
+        id: v
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ]; then version="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
       - id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
@@ -107,13 +132,12 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
-      - name: Strip the v for the binary version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            type=raw,value=${{ steps.v.outputs.version }}
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ env.VERSION }}
@@ -132,23 +156,30 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: The chart version must match the tag
+      - name: The chart version must match the release version
         run: |
           version="$(sed -n 's/^version: //p' charts/platypus/Chart.yaml)"
           app_version="$(sed -n 's/^appVersion: "\?\([^"\]*\)"\?/\1/p' charts/platypus/Chart.yaml)"
-          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
-            echo "charts/platypus/Chart.yaml says ${version}, the tag says ${GITHUB_REF_NAME#v}." >&2
+          expected="${{ github.event.inputs.version }}"
+          if [ -z "$expected" ]; then expected="${GITHUB_REF_NAME#v}"; fi
+          if [ "$version" != "$expected" ]; then
+            echo "charts/platypus/Chart.yaml says ${version}, the release is ${expected}." >&2
             echo "Bump version and appVersion in the release commit." >&2
             exit 1
           fi
-          if [ "$app_version" != "${GITHUB_REF_NAME#v}" ]; then
-            echo "appVersion is ${app_version}, the tag says ${GITHUB_REF_NAME#v}: the chart would pull the previous image." >&2
+          if [ "$app_version" != "$expected" ]; then
+            echo "appVersion is ${app_version}, the release is ${expected}: the chart would pull the previous image." >&2
             exit 1
           fi
-      - name: Package and push
+      - name: Package (publish only for a tag)
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          helm package charts/platypus --destination .
+          version="${{ github.event.inputs.version }}"
+          if [ -z "$version" ]; then version="${GITHUB_REF_NAME#v}"; fi
+          helm package charts/platypus --version "$version" --app-version "$version" --destination .
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dry run: package built, nothing pushed"
+            exit 0
+          fi
           helm push "platypus-${version}.tgz" oci://ghcr.io/fliphess/charts
           docker buildx imagetools create \
             -t ghcr.io/fliphess/charts/platypus:latest \
@@ -156,6 +187,7 @@ jobs:
 
   release:
     name: Open the release
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [binaries, checksums, image, chart]
     steps:
