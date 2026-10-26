@@ -14,20 +14,21 @@ UPDATE sessions SET admin_mode_until = sqlc.narg(admin_mode_until) WHERE id_hash
 -- name: SetSessionBootstrapToken :exec
 UPDATE sessions SET bootstrap_token_id = sqlc.narg(bootstrap_token_id) WHERE id_hash = @id_hash;
 
--- name: SetWebAuthnCeremony :exec
-UPDATE sessions
-SET webauthn_ceremony = @ceremony, webauthn_ceremony_until = @ceremony_until
-WHERE id_hash = @id_hash;
+-- name: SaveWebAuthnCeremony :exec
+INSERT INTO webauthn_ceremonies (id_hash, ceremony, ceremony_until)
+VALUES (@id_hash, @ceremony, @ceremony_until)
+ON CONFLICT (id_hash) DO UPDATE
+SET ceremony = excluded.ceremony, ceremony_until = excluded.ceremony_until;
 
+-- A finish takes the ceremony by deleting it: only one request can win, even
+-- if two arrive concurrently.
 -- name: TakeWebAuthnCeremony :one
-UPDATE sessions
-SET webauthn_ceremony = null, webauthn_ceremony_until = null
-WHERE id_hash = @id_hash AND webauthn_ceremony is not null
-  AND webauthn_ceremony_until is not null AND webauthn_ceremony_until > now()
-RETURNING webauthn_ceremony;
+DELETE FROM webauthn_ceremonies
+WHERE id_hash = @id_hash AND ceremony_until > now()
+RETURNING ceremony;
 
 -- name: ClearWebAuthnCeremony :exec
-UPDATE sessions SET webauthn_ceremony = null, webauthn_ceremony_until = null WHERE id_hash = @id_hash;
+DELETE FROM webauthn_ceremonies WHERE id_hash = @id_hash;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE id_hash = @id_hash;

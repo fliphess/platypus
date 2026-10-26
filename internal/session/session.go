@@ -27,8 +27,6 @@ type Session struct {
 	CSRFToken        string
 	AdminModeUntil   *time.Time
 	BootstrapTokenID *int64
-	ceremony         []byte
-	ceremonyUntil    *time.Time
 }
 
 // Valid reports whether the Session was loaded or started (not the zero value).
@@ -39,14 +37,6 @@ func (s Session) Valid() bool {
 // InAdminMode reports whether admin mode is active at now.
 func (s Session) InAdminMode(now time.Time) bool {
 	return s.AdminModeUntil != nil && now.Before(*s.AdminModeUntil)
-}
-
-// Ceremony returns the stored passkey ceremony, if it hasn't expired.
-func (s Session) Ceremony(now time.Time) ([]byte, bool) {
-	if s.ceremony == nil || s.ceremonyUntil == nil || !now.Before(*s.ceremonyUntil) {
-		return nil, false
-	}
-	return s.ceremony, true
 }
 
 // Manager loads and stores sessions.
@@ -183,10 +173,10 @@ const ceremonyLifetime = 5 * time.Minute
 
 // SaveCeremony stores the state of a passkey step that is in progress.
 func (m *Manager) SaveCeremony(ctx context.Context, s Session, ceremony []byte) error {
-	return m.queries.SetWebAuthnCeremony(ctx, db.SetWebAuthnCeremonyParams{
+	return m.queries.SaveWebAuthnCeremony(ctx, db.SaveWebAuthnCeremonyParams{
 		IDHash:        s.idHash,
 		Ceremony:      ceremony,
-		CeremonyUntil: new(m.now().Add(ceremonyLifetime)),
+		CeremonyUntil: m.now().Add(ceremonyLifetime),
 	})
 }
 
@@ -231,8 +221,6 @@ func fromRow(row db.Session) Session {
 		CSRFToken:        row.CSRFToken,
 		AdminModeUntil:   row.AdminModeUntil,
 		BootstrapTokenID: row.BootstrapTokenID,
-		ceremony:         row.WebAuthnCeremony,
-		ceremonyUntil:    row.WebAuthnCeremonyUntil,
 	}
 }
 

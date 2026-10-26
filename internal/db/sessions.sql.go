@@ -12,7 +12,7 @@ import (
 )
 
 const clearWebAuthnCeremony = `-- name: ClearWebAuthnCeremony :exec
-UPDATE sessions SET webauthn_ceremony = null, webauthn_ceremony_until = null WHERE id_hash = $1
+DELETE FROM webauthn_ceremonies WHERE id_hash = $1
 `
 
 func (q *Queries) ClearWebAuthnCeremony(ctx context.Context, idHash []byte) error {
@@ -100,6 +100,24 @@ func (q *Queries) GetSession(ctx context.Context, idHash []byte) (Session, error
 	return i, err
 }
 
+const saveWebAuthnCeremony = `-- name: SaveWebAuthnCeremony :exec
+INSERT INTO webauthn_ceremonies (id_hash, ceremony, ceremony_until)
+VALUES ($1, $2, $3)
+ON CONFLICT (id_hash) DO UPDATE
+SET ceremony = excluded.ceremony, ceremony_until = excluded.ceremony_until
+`
+
+type SaveWebAuthnCeremonyParams struct {
+	IDHash        []byte
+	Ceremony      json.RawMessage
+	CeremonyUntil time.Time
+}
+
+func (q *Queries) SaveWebAuthnCeremony(ctx context.Context, arg SaveWebAuthnCeremonyParams) error {
+	_, err := q.db.Exec(ctx, saveWebAuthnCeremony, arg.IDHash, arg.Ceremony, arg.CeremonyUntil)
+	return err
+}
+
 const setAdminMode = `-- name: SetAdminMode :exec
 UPDATE sessions SET admin_mode_until = $1 WHERE id_hash = $2
 `
@@ -128,36 +146,19 @@ func (q *Queries) SetSessionBootstrapToken(ctx context.Context, arg SetSessionBo
 	return err
 }
 
-const setWebAuthnCeremony = `-- name: SetWebAuthnCeremony :exec
-UPDATE sessions
-SET webauthn_ceremony = $1, webauthn_ceremony_until = $2
-WHERE id_hash = $3
-`
-
-type SetWebAuthnCeremonyParams struct {
-	Ceremony      json.RawMessage
-	CeremonyUntil *time.Time
-	IDHash        []byte
-}
-
-func (q *Queries) SetWebAuthnCeremony(ctx context.Context, arg SetWebAuthnCeremonyParams) error {
-	_, err := q.db.Exec(ctx, setWebAuthnCeremony, arg.Ceremony, arg.CeremonyUntil, arg.IDHash)
-	return err
-}
-
 const takeWebAuthnCeremony = `-- name: TakeWebAuthnCeremony :one
-UPDATE sessions
-SET webauthn_ceremony = null, webauthn_ceremony_until = null
-WHERE id_hash = $1 AND webauthn_ceremony is not null
-  AND webauthn_ceremony_until is not null AND webauthn_ceremony_until > now()
-RETURNING webauthn_ceremony
+DELETE FROM webauthn_ceremonies
+WHERE id_hash = $1 AND ceremony_until > now()
+RETURNING ceremony
 `
 
+// A finish takes the ceremony by deleting it: only one request can win, even
+// if two arrive concurrently.
 func (q *Queries) TakeWebAuthnCeremony(ctx context.Context, idHash []byte) (json.RawMessage, error) {
 	row := q.db.QueryRow(ctx, takeWebAuthnCeremony, idHash)
-	var webauthn_ceremony json.RawMessage
-	err := row.Scan(&webauthn_ceremony)
-	return webauthn_ceremony, err
+	var ceremony json.RawMessage
+	err := row.Scan(&ceremony)
+	return ceremony, err
 }
 
 const touchSession = `-- name: TouchSession :exec

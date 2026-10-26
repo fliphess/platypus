@@ -196,3 +196,9 @@ type UserPolicy struct {
 	UserID   int64
 	PolicyID int64
 }
+
+type WebAuthnCeremony struct {
+	IDHash        []byte
+	Ceremony      json.RawMessage
+	CeremonyUntil time.Time
+}
