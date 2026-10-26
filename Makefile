@@ -94,6 +94,10 @@ smoke: ## Start the compose stack from scratch and check platypus reaches the bo
 e2e: ## Run the browser tests (Playwright in Docker) against a fresh stack
 	./e2e/run.sh
 
+.PHONY: guards-prove
+guards-prove: ## Reintroduce known bugs and prove the guards catch each one
+	./scripts/guards-prove.sh
+
 .PHONY: helm-lint
 helm-lint: ## Lint the Helm chart and validate it with every example in charts/platypus/ci
 	for values in charts/platypus/ci/*.yaml; do \
