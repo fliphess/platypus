@@ -276,6 +276,8 @@ SET description = excluded.description,
         ELSE items.access_checked_at
     END,
     synced_at = excluded.synced_at
+WHERE items.last_modified_at is null OR excluded.last_modified_at is null
+   OR excluded.last_modified_at >= items.last_modified_at
 `
 
 type UpsertParameterParams struct {
@@ -338,6 +340,8 @@ SET description = excluded.description,
         ELSE items.access_checked_at
     END,
     synced_at = excluded.synced_at
+WHERE items.last_modified_at is null OR excluded.last_modified_at is null
+   OR excluded.last_modified_at >= items.last_modified_at
 `
 
 type UpsertSecretParams struct {

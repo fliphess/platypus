@@ -3,10 +3,13 @@ package web
 import (
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
+	"platypus/internal/access"
 	"platypus/internal/audit"
 	"platypus/internal/db"
 )
@@ -104,6 +107,7 @@ type auditData struct {
 	Actions       []audit.Action
 	Outcomes      []audit.Outcome
 	Users         []db.User
+	UsersCapped   bool
 	RetentionDays int
 	Page          int
 	LastPage      int
@@ -124,26 +128,31 @@ type auditFilterForm struct {
 	Search  string
 }
 
+// parseAuditFilter reads the filter once: the form that is shown again and
+// the filter the trail uses come from the same fields.
 func parseAuditFilter(r *http.Request) (auditFilterForm, audit.Filter) {
 	q := r.URL.Query()
 	form := auditFilterForm{
 		Since: q.Get("since"), Until: q.Get("until"), Actor: q.Get("actor"),
 		Action: q.Get("action"), Outcome: q.Get("outcome"), Search: q.Get("q"),
 	}
-	filter := audit.Filter{
-		ActorEmail: form.Actor, Action: form.Action, Outcome: form.Outcome, Search: form.Search,
-	}
-	// The date controls describe the calendar days the user sees, so parse
-	// them in the same zone the timestamps are rendered in.
 	loc, _ := timeZoneFor(r)
-	if t, ok := parseAuditDay(form.Since, loc); ok {
+	return form, form.trailFilter(loc)
+}
+
+// trailFilter turns the form into the trail's filter. The date controls
+// describe the calendar days the user sees, so they are parsed in the display
+// zone.
+func (f auditFilterForm) trailFilter(loc *time.Location) audit.Filter {
+	filter := audit.Filter{ActorEmail: f.Actor, Action: f.Action, Outcome: f.Outcome, Search: f.Search}
+	if t, ok := parseAuditDay(f.Since, loc); ok {
 		filter.Since = &t
 	}
-	if t, ok := parseAuditDay(form.Until, loc); ok {
+	if t, ok := parseAuditDay(f.Until, loc); ok {
 		end := t.AddDate(0, 0, 1) // until includes the whole day
 		filter.Until = &end
 	}
-	return form, filter
+	return filter
 }
 
 // parseAuditDay reads a date control in the display zone.
@@ -167,7 +176,7 @@ func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	lastPage := lastPage(total, size)
-	query := auditQuery(form)
+	query := form.query()
 	data := auditData{
 		Filter: form, Events: events, Actions: audit.Actions, Outcomes: audit.Outcomes,
 		RetentionDays: s.settings.AuditRetentionDays,
@@ -179,6 +188,7 @@ func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 	if data.Users, err = s.services.Access.Users(r.Context(), ""); err != nil {
 		return err
 	}
+	data.UsersCapped = len(data.Users) == access.PickerUserLimit
 	// Paging links keep the filter; the CSV link above exports all of it.
 	data.Pager = newPager("/admin/audit", "#audit-results",
 		fmt.Sprintf("Page %d of %d · %d events", pageNumber, lastPage, total),
@@ -192,8 +202,8 @@ func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// auditQuery holds the filter for "older" and CSV links.
-func auditQuery(f auditFilterForm) url.Values {
+// query holds the filter for "older" and CSV links.
+func (f auditFilterForm) query() url.Values {
 	values := map[string]string{"since": f.Since, "until": f.Until, "actor": f.Actor,
 		"action": f.Action, "outcome": f.Outcome, "q": f.Search}
 	query := url.Values{}
@@ -207,10 +217,29 @@ func auditQuery(f auditFilterForm) url.Values {
 
 func (s *Server) exportAudit(w http.ResponseWriter, r *http.Request) error {
 	_, filter := parseAuditFilter(r)
+	// Build the file before sending anything: a query failing halfway would
+	// otherwise append an HTML error page to a 200 CSV response.
+	file, err := os.CreateTemp("", "platypus-audit-*.csv")
+	if err != nil {
+		return fmt.Errorf("create audit export: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+	}()
+	if err := s.services.Trail.WriteCSV(r.Context(), file, filter); err != nil {
+		return err
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind audit export: %w", err)
+	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf(`attachment; filename="platypus-audit-%s.csv"`, s.now().UTC().Format("2006-01-02")))
-	return s.services.Trail.WriteCSV(r.Context(), w, filter)
+	if _, err := io.Copy(w, file); err != nil {
+		return fmt.Errorf("send audit export: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) previewPrune(w http.ResponseWriter, r *http.Request) error {

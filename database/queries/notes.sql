@@ -1,8 +1,9 @@
 -- name: GetNote :one
 SELECT * FROM notes WHERE kind = @kind AND name = @name;
 
--- name: ListNotesForKind :many
-SELECT * FROM notes WHERE kind = @kind ORDER BY name;
+-- Notes for the items on one page of a list, not every note of the kind.
+-- name: ListNotesForNames :many
+SELECT * FROM notes WHERE kind = @kind AND name = any(@names::text[]) ORDER BY name;
 
 -- name: SaveNote :exec
 INSERT INTO notes (kind, name, body, updated_by)

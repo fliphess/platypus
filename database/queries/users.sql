@@ -25,7 +25,8 @@ SELECT * FROM users
 WHERE sqlc.narg(search)::text is null
    OR email LIKE '%' || sqlc.narg(search)::text || '%'
    OR lower(display_name) LIKE '%' || sqlc.narg(search)::text || '%'
-ORDER BY email;
+ORDER BY email
+LIMIT @max_rows;
 
 -- Users for the admin list, with how many policies reach them (directly or
 -- through teams). Filters: a search term as in ListUsers, and only users

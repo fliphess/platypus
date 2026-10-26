@@ -8,6 +8,7 @@ import (
 	"platypus/internal/audit"
 	"platypus/internal/database"
 	"platypus/internal/db"
+	paging "platypus/internal/page"
 	"platypus/internal/problem"
 	"platypus/internal/textclean"
 )
@@ -57,22 +58,14 @@ func (s *Service) TeamsPage(ctx context.Context, search string, page, perPage in
 	if err != nil {
 		return nil, 0, problem.Invalid("Search: %v.", err)
 	}
-	if page < 1 {
-		page = 1
-	}
-	// Keep the offset arithmetic in range: the pager never asks for a page
-	// this far out, and a crafted ?page= must not overflow.
-	page = min(page, 1_000_000)
-	if perPage <= 0 {
-		perPage = UsersPerPage
-	}
+	_, perPage, offset := paging.Clamp(page, perPage, UsersPerPage)
 	pattern := "%" + likeEscaper.Replace(cleaned) + "%"
 	total, err := s.queries.CountTeams(ctx, pattern)
 	if err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.queries.ListTeamsPage(ctx, db.ListTeamsPageParams{
-		Search: pattern, MaxRows: int32(perPage), RowOffset: int32((page - 1) * perPage), //nolint:gosec // page and perPage are bounded above
+		Search: pattern, MaxRows: int32(perPage), RowOffset: int32(offset), //nolint:gosec // bounded by paging.Clamp
 	})
 	if err != nil {
 		return nil, 0, err

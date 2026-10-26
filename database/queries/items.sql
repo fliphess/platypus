@@ -25,7 +25,9 @@ SET description = excluded.description,
         WHEN items.change_marker <> excluded.change_marker THEN null
         ELSE items.access_checked_at
     END,
-    synced_at = excluded.synced_at;
+    synced_at = excluded.synced_at
+WHERE items.last_modified_at is null OR excluded.last_modified_at is null
+   OR excluded.last_modified_at >= items.last_modified_at;
 
 -- Inserts or refreshes a secret from AWS; see UpsertParameter.
 -- name: UpsertSecret :exec
@@ -53,7 +55,9 @@ SET description = excluded.description,
         WHEN items.change_marker <> excluded.change_marker THEN null
         ELSE items.access_checked_at
     END,
-    synced_at = excluded.synced_at;
+    synced_at = excluded.synced_at
+WHERE items.last_modified_at is null OR excluded.last_modified_at is null
+   OR excluded.last_modified_at >= items.last_modified_at;
 
 -- Removes items a complete sync no longer saw in AWS.
 -- name: DeleteItemsNotSyncedSince :execrows

@@ -7,6 +7,7 @@ import (
 	"platypus/internal/authz"
 	"platypus/internal/catalog"
 	"platypus/internal/item"
+	paging "platypus/internal/page"
 	"platypus/internal/problem"
 	"platypus/internal/textclean"
 )
@@ -14,8 +15,10 @@ import (
 // PageSize is the default number of items one page of a list shows.
 const PageSize = 50
 
-// maxPage keeps page numbers from the URL in a sane range.
-const maxPage = 100_000
+// pageClamp bounds a caller's page and size the same way the handlers do.
+func pageClamp(number, perPage int) (int, int, int) {
+	return paging.Clamp(number, perPage, PageSize)
+}
 
 // Listing is one page of the parameter or secret list.
 type Listing struct {
@@ -56,25 +59,24 @@ func (s *Service) List(ctx context.Context, subject authz.Subject, kind item.Kin
 	if err != nil {
 		return Listing{}, problem.Invalid("Search: %v.", err)
 	}
-	if perPage <= 0 {
-		perPage = PageSize
-	}
-	page = min(max(page, 1), maxPage)
-	// maxPage bounds the arithmetic, so the offset cannot overflow an int32.
-	offset := int32((page - 1) * perPage) //nolint:gosec // bounded by maxPage
+	page, perPage, offset := pageClamp(page, perPage)
 
 	found, total, err := s.catalog.Find(ctx, catalog.Query{
 		Kind:    kind,
 		Allowed: subject.PatternsWith(authz.List, kind),
 		Search:  search,
-		Offset:  offset,
-		Limit:   int32(perPage),
+		Offset:  int32(offset),  //nolint:gosec // bounded by paging.Clamp
+		Limit:   int32(perPage), //nolint:gosec // bounded by paging.Clamp
 	})
 	if err != nil {
 		return Listing{}, err
 	}
 
-	notes, err := s.catalog.Notes(ctx, kind)
+	names := make([]string, len(found))
+	for i, summary := range found {
+		names[i] = summary.Name
+	}
+	notes, err := s.catalog.NotesFor(ctx, kind, names)
 	if err != nil {
 		return Listing{}, err
 	}

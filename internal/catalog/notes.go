@@ -8,6 +8,7 @@ import (
 	"platypus/internal/database"
 	"platypus/internal/db"
 	"platypus/internal/item"
+	paging "platypus/internal/page"
 )
 
 // Note is a free-text note on an item, kept only in platypus.
@@ -29,11 +30,13 @@ func (c *Catalog) Note(ctx context.Context, kind item.Kind, name string) (*Note,
 	return &Note{Body: row.Body, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt}, nil
 }
 
-// Notes returns every note of one kind, keyed by item name. List pages show
-// note text inline, so a note saying "do not edit" is readable without
-// opening the edit form.
-func (c *Catalog) Notes(ctx context.Context, kind item.Kind) (map[string]Note, error) {
-	rows, err := c.queries.ListNotesForKind(ctx, string(kind))
+// NotesFor returns the notes of these items, keyed by item name, so a list
+// page loads only what it shows.
+func (c *Catalog) NotesFor(ctx context.Context, kind item.Kind, names []string) (map[string]Note, error) {
+	if len(names) == 0 {
+		return map[string]Note{}, nil
+	}
+	rows, err := c.queries.ListNotesForNames(ctx, db.ListNotesForNamesParams{Kind: string(kind), Names: names})
 	if err != nil {
 		return nil, fmt.Errorf("list notes: %w", err)
 	}
@@ -55,18 +58,13 @@ func (c *Catalog) SaveNote(ctx context.Context, kind item.Kind, name, body, upda
 // OrphanedNotesPage returns one page of orphaned notes and the total, so the
 // page uses the same pager as every other list.
 func (c *Catalog) OrphanedNotesPage(ctx context.Context, page, perPage int) ([]db.Note, int64, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage <= 0 {
-		perPage = 50
-	}
+	_, perPage, offset := paging.Clamp(page, perPage, 50)
 	total, err := c.queries.CountOrphanedNotes(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 	notes, err := c.queries.ListOrphanedNotesPage(ctx, db.ListOrphanedNotesPageParams{
-		MaxRows: int32(perPage), RowOffset: int32((page - 1) * perPage), //nolint:gosec // page bounded by the pager
+		MaxRows: int32(perPage), RowOffset: int32(offset), //nolint:gosec // bounded by paging.Clamp
 	})
 	if err != nil {
 		return nil, 0, err

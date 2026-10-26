@@ -222,12 +222,18 @@ WHERE $1::text is null
    OR email LIKE '%' || $1::text || '%'
    OR lower(display_name) LIKE '%' || $1::text || '%'
 ORDER BY email
+LIMIT $2
 `
+
+type ListUsersParams struct {
+	Search  *string
+	MaxRows int32
+}
 
 // Users whose email or name contains the search term (all when null). The
 // caller lowercases and escapes the term.
-func (q *Queries) ListUsers(ctx context.Context, search *string) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, search)
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsers, arg.Search, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}

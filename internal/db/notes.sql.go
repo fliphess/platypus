@@ -59,12 +59,18 @@ func (q *Queries) GetNote(ctx context.Context, arg GetNoteParams) (Note, error) 
 	return i, err
 }
 
-const listNotesForKind = `-- name: ListNotesForKind :many
-SELECT kind, name, body, updated_at, updated_by FROM notes WHERE kind = $1 ORDER BY name
+const listNotesForNames = `-- name: ListNotesForNames :many
+SELECT kind, name, body, updated_at, updated_by FROM notes WHERE kind = $1 AND name = any($2::text[]) ORDER BY name
 `
 
-func (q *Queries) ListNotesForKind(ctx context.Context, kind string) ([]Note, error) {
-	rows, err := q.db.Query(ctx, listNotesForKind, kind)
+type ListNotesForNamesParams struct {
+	Kind  string
+	Names []string
+}
+
+// Notes for the items on one page of a list, not every note of the kind.
+func (q *Queries) ListNotesForNames(ctx context.Context, arg ListNotesForNamesParams) ([]Note, error) {
+	rows, err := q.db.Query(ctx, listNotesForNames, arg.Kind, arg.Names)
 	if err != nil {
 		return nil, err
 	}

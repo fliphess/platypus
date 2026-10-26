@@ -11,6 +11,7 @@ import (
 	"platypus/internal/audit"
 	"platypus/internal/database"
 	"platypus/internal/db"
+	paging "platypus/internal/page"
 	"platypus/internal/problem"
 	"platypus/internal/textclean"
 )
@@ -62,37 +63,38 @@ func (s *Service) afterLogin(ctx context.Context, user db.User, name string, gro
 // out of it, out of the team. Teams without a link are never touched, and
 // removing a link keeps members.
 func (s *Service) applyGroups(ctx context.Context, user db.User, groups []string) error {
-	if _, err := s.queries.SetUserGroups(ctx, db.SetUserGroupsParams{ID: user.ID, Groups: groups}); err != nil {
-		return fmt.Errorf("store groups: %w", err)
-	}
-	added, err := s.queries.AddUserToGroupTeams(ctx, db.AddUserToGroupTeamsParams{UserID: user.ID, Groups: groups})
-	if err != nil {
-		return fmt.Errorf("join teams of linked groups: %w", err)
-	}
-	removed, err := s.queries.RemoveUserFromOtherGroupTeams(ctx, db.RemoveUserFromOtherGroupTeamsParams{UserID: user.ID, Groups: groups})
-	if err != nil {
-		return fmt.Errorf("leave teams of unlinked groups: %w", err)
-	}
-	if len(added) == 0 && len(removed) == 0 {
-		return nil
-	}
-	details := map[string]any{"user": user.Email, "via": "group sync"}
-	if names := s.teamNames(ctx, added); len(names) > 0 {
-		details["added_to"] = names
-	}
-	if names := s.teamNames(ctx, removed); len(names) > 0 {
-		details["removed_from"] = names
-	}
-	s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionUserTeams, Outcome: audit.Allowed, Details: details})
-	return nil
+	return database.InTx(ctx, s.pool, func(q *db.Queries) error {
+		if _, err := q.SetUserGroups(ctx, db.SetUserGroupsParams{ID: user.ID, Groups: groups}); err != nil {
+			return fmt.Errorf("store groups: %w", err)
+		}
+		added, err := q.AddUserToGroupTeams(ctx, db.AddUserToGroupTeamsParams{UserID: user.ID, Groups: groups})
+		if err != nil {
+			return fmt.Errorf("join teams of linked groups: %w", err)
+		}
+		removed, err := q.RemoveUserFromOtherGroupTeams(ctx, db.RemoveUserFromOtherGroupTeamsParams{UserID: user.ID, Groups: groups})
+		if err != nil {
+			return fmt.Errorf("leave teams of unlinked groups: %w", err)
+		}
+		if len(added) == 0 && len(removed) == 0 {
+			return nil
+		}
+		details := map[string]any{"user": user.Email, "via": "group sync"}
+		if names := teamNamesFor(ctx, q, added); len(names) > 0 {
+			details["added_to"] = names
+		}
+		if names := teamNamesFor(ctx, q, removed); len(names) > 0 {
+			details["removed_from"] = names
+		}
+		return s.audit.RecordTx(ctx, q, audit.Event{Action: audit.ActionUserTeams, Outcome: audit.Allowed, Details: details})
+	})
 }
 
-// teamNames returns the names of these teams, best effort: it is only used
+// teamNamesFor names the teams in a transaction, best effort: it is only used
 // in audit details after the change has happened.
-func (s *Service) teamNames(ctx context.Context, ids []int64) []string {
+func teamNamesFor(ctx context.Context, q *db.Queries, ids []int64) []string {
 	names := make([]string, 0, len(ids))
 	for _, id := range ids {
-		if team, err := s.queries.GetTeam(ctx, id); err == nil {
+		if team, err := q.GetTeam(ctx, id); err == nil {
 			names = append(names, team.Name)
 		}
 	}
@@ -186,7 +188,11 @@ func (s *Service) User(ctx context.Context, id int64) (db.User, error) {
 	return user, err
 }
 
-// Users lists users whose email contains search (all users when empty).
+// PickerUserLimit is how many accounts a picker offers at once.
+const PickerUserLimit = 200
+
+// Users lists users whose email contains search (the first PickerUserLimit
+// accounts when empty), for pickers that must stay bounded.
 func (s *Service) Users(ctx context.Context, search string) ([]db.User, error) {
 	search, err := textclean.Clean(search, textclean.Options{MaxLength: 200})
 	if err != nil {
@@ -197,7 +203,7 @@ func (s *Service) Users(ctx context.Context, search string) ([]db.User, error) {
 		escaped := likeEscaper.Replace(strings.ToLower(search))
 		filter = &escaped
 	}
-	return s.queries.ListUsers(ctx, filter)
+	return s.queries.ListUsers(ctx, db.ListUsersParams{Search: filter, MaxRows: PickerUserLimit})
 }
 
 // UserFilter selects users for the admin list.
@@ -227,10 +233,6 @@ func (s *Service) UserList(ctx context.Context, filter UserFilter) ([]ListedUser
 	if err != nil {
 		return nil, 0, problem.Invalid("Search: %v.", err)
 	}
-	perPage := filter.PerPage
-	if perPage <= 0 {
-		perPage = UsersPerPage
-	}
 	params := db.ListUsersWithAccessParams{WithoutAccess: filter.WithoutAccess}
 	if search != "" {
 		escaped := likeEscaper.Replace(strings.ToLower(search))
@@ -242,10 +244,8 @@ func (s *Service) UserList(ctx context.Context, filter UserFilter) ([]ListedUser
 		return nil, 0, err
 	}
 
-	page := max(filter.Page, 1)
-	page = min(page, 1_000_000)           //nolint:gosec // keeps the offset arithmetic in range
-	offset := int32((page - 1) * perPage) //nolint:gosec // page and perPage are bounded above
-	params.MaxRows, params.Skip = int32(perPage), offset
+	_, perPage, offset := paging.Clamp(filter.Page, filter.PerPage, UsersPerPage)
+	params.MaxRows, params.Skip = int32(perPage), int32(offset) //nolint:gosec // bounded by paging.Clamp
 	rows, err := s.queries.ListUsersWithAccess(ctx, params)
 	if err != nil {
 		return nil, 0, err

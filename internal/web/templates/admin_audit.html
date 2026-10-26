@@ -19,6 +19,9 @@
         <option value="">anyone</option>
         {{- range .Users}}<option value="{{.Email}}"{{if eq .Email $.Data.Filter.Actor}} selected{{end}}>{{.Email}}</option>{{end}}
       </select>
+      {{- if .UsersCapped}}
+      <span class="hint">The first 200 accounts only; filter by URL for someone older.</span>
+      {{- end}}
     </label>
     <label for="action">Action
       <select id="action" name="action">
