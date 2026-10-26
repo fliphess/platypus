@@ -709,14 +709,27 @@ button:disabled, .button[aria-disabled=true] { opacity: 0.5; cursor: not-allowed
 .inline-form { display: inline; margin: 0; }
 
 .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0 1rem; }
-/* The audit filters below its search row: a tidy 2 × 2 grid. */
-.audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem; }
-@media (max-width: 60rem) { .audit-filters { grid-template-columns: 1fr; } }
+/* The audit filters: two roomy date fields and three compact selects, all on
+   one row on wide screens. They can never push the search bar's button away:
+   grid children may shrink, and the date fields keep a readable minimum. */
+.audit-filters {
+  grid-template-columns: minmax(11rem, 1.2fr) minmax(11rem, 1.2fr) repeat(3, minmax(8rem, 1fr));
+  gap: 0.6rem 0.9rem;
+  align-items: end;
+}
+.audit-filters > label { min-width: 0; }
+.audit-filters input, .audit-filters select { min-width: 0; width: 100%; }
+@media (max-width: 72rem) {
+  .audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 40rem) { .audit-filters { grid-template-columns: 1fr; } }
 .toolbar-line { margin-bottom: 0.6rem; }
 .filters label { font-weight: 500; }
 
 .search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.search-bar input { flex: 1; }
+/* The field takes the slack; the button never shrinks out of view. */
+.search-bar input { flex: 1; min-width: 0; }
+.search-bar button { flex: none; }
 
 /* A toolbar row: the search box with a quiet view switch beside it. */
 .toolbar-label { color: var(--muted); font-size: var(--text-small); font-weight: 600; }

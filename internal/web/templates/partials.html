@@ -107,3 +107,26 @@
   </div>
 </div>
 {{end}}
+
+{{/* The pager every list uses: where you are, how many rows to show, and the
+       way to the neighbouring pages. One definition, so no list drifts. */}}
+{{define "pager"}}
+{{- if gt .LastPage 1}}
+<nav class="pager" aria-label="Pages">
+  <span class="muted small">{{.Summary}}</span>
+  <form class="page-size" method="get" action="{{.Action}}">
+    {{.Hidden}}
+    <label>Per page
+      <select name="per_page" aria-label="Rows per page"
+              hx-get="{{.Action}}" hx-trigger="change" hx-include="closest form"
+              hx-target="{{.Target}}" hx-select="{{.Target}}" hx-swap="outerHTML" hx-push-url="true">
+        {{- range .Sizes}}<option value="{{.}}"{{if eq . $.PerPage}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+    <noscript><button type="submit">Apply</button></noscript>
+  </form>
+  {{- with .PrevLink}}<a class="button" href="{{.}}">Previous</a>{{end}}
+  {{- with .NextLink}}<a class="button" href="{{.}}">Next</a>{{end}}
+</nav>
+{{- end}}
+{{end}}

@@ -3,10 +3,9 @@ package web
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
+	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"platypus/internal/authz"
@@ -22,18 +21,15 @@ type browseData struct {
 	CanCreate bool
 	HasAccess bool
 	Blocked   bool
-	// Page links keep the search. They are built here, already encoded,
-	// because the template would escape a query string a second time.
-	PreviousLink template.URL
-	NextLink     template.URL
+	Pager     pager
 }
 
 func (s *Server) browse(kind item.Kind) handlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		viewer := viewerFrom(r.Context())
 		query := r.URL.Query()
-		pageNumber, _ := strconv.Atoi(query.Get("page"))
-		listing, err := s.services.Items.List(r.Context(), viewer.Subject, kind, query.Get("q"), pageNumber)
+		size := pageSize(r)
+		listing, err := s.services.Items.List(r.Context(), viewer.Subject, kind, query.Get("q"), pageNumber(r), size)
 		if err != nil {
 			return err
 		}
@@ -43,12 +39,9 @@ func (s *Server) browse(kind item.Kind) handlerFunc {
 			HasAccess: viewer.Subject.HasAny(authz.List, kind) || viewer.Subject.HasAny(authz.Create, kind),
 			Blocked:   viewer.State.Blocked,
 		}
-		if listing.HasPrevious() {
-			data.PreviousLink = listPageLink(kind, listing.Search, listing.Page-1)
-		}
-		if listing.HasNext() {
-			data.NextLink = listPageLink(kind, listing.Search, listing.Page+1)
-		}
+		lastPage := int(max((listing.Total+int64(size)-1)/int64(size), 1))
+		summary := fmt.Sprintf("%d–%d of %d", listing.First(), listing.Last(), listing.Total)
+		data.Pager = newPager("/"+kindPath(kind), "#results", summary, query, listing.Page, lastPage, size)
 		if isHTMX(r) && r.Header.Get("HX-Target") == "results" {
 			s.renderFragment(w, r, http.StatusOK, "browse", "results", data)
 			return nil
@@ -420,14 +413,6 @@ func valueFromForm(r *http.Request) sensitive.Value {
 func isJSONFormat(r *http.Request) bool {
 	format := r.PostFormValue("format")
 	return format == "json" || format == "fields"
-}
-
-func listPageLink(kind item.Kind, search string, page int) template.URL {
-	query := url.Values{"page": {strconv.Itoa(page)}}
-	if search != "" {
-		query.Set("q", search)
-	}
-	return template.URL("/" + kindPath(kind) + "?" + query.Encode()) //nolint:gosec // encoded above
 }
 
 func itemURL(kind item.Kind, name string) string {

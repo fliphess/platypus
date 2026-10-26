@@ -121,7 +121,7 @@ func TestListShowsOnlyAllowedItems(t *testing.T) {
 	ctx := user(context.Background())
 	dev := subject(rule(item.KindSSM, "/apps/*", authz.Permissions{List: true}))
 
-	all, err := f.svc.List(ctx, dev, item.KindSSM, "", 1)
+	all, err := f.svc.List(ctx, dev, item.KindSSM, "", 1, 0)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -136,21 +136,21 @@ func TestListShowsOnlyAllowedItems(t *testing.T) {
 		t.Errorf("paging of a single page: first=%d last=%d", all.First(), all.Last())
 	}
 
-	found, _ := f.svc.List(ctx, dev, item.KindSSM, "SEARCH", 1)
+	found, _ := f.svc.List(ctx, dev, item.KindSSM, "SEARCH", 1, 0)
 	if len(found.Items) != 1 || found.Items[0].Name != "/apps/search/url" {
 		t.Fatalf("search = %+v", found.Items)
 	}
-	byPath, _ := f.svc.List(ctx, dev, item.KindSSM, "payments/", 1)
+	byPath, _ := f.svc.List(ctx, dev, item.KindSSM, "payments/", 1, 0)
 	if byPath.Total != 2 {
 		t.Errorf("searching a path finds %d items, want 2", byPath.Total)
 	}
 
 	// LIKE wildcards in a search are matched literally.
-	if found, _ := f.svc.List(ctx, dev, item.KindSSM, "%", 1); len(found.Items) != 0 {
+	if found, _ := f.svc.List(ctx, dev, item.KindSSM, "%", 1, 0); len(found.Items) != 0 {
 		t.Errorf("search for %% matched %d items", len(found.Items))
 	}
 
-	nobody, _ := f.svc.List(ctx, subject(), item.KindSSM, "", 1)
+	nobody, _ := f.svc.List(ctx, subject(), item.KindSSM, "", 1, 0)
 	if len(nobody.Items) != 0 {
 		t.Error("a user without rules sees items")
 	}
@@ -164,15 +164,15 @@ func TestListPages(t *testing.T) {
 	}
 	everything := subject(rule(item.KindSSM, "/bulk/*", authz.Permissions{List: true}))
 
-	first, _ := f.svc.List(ctx, everything, item.KindSSM, "", 1)
-	second, _ := f.svc.List(ctx, everything, item.KindSSM, "", 2)
+	first, _ := f.svc.List(ctx, everything, item.KindSSM, "", 1, 0)
+	second, _ := f.svc.List(ctx, everything, item.KindSSM, "", 2, 0)
 	if len(first.Items) != items.PageSize || !first.HasNext() || first.HasPrevious() {
 		t.Errorf("first page: %d items, next=%v", len(first.Items), first.HasNext())
 	}
 	if len(second.Items) != 5 || second.HasNext() || !second.HasPrevious() || second.First() != items.PageSize+1 {
 		t.Errorf("second page: %d items, first=%d", len(second.Items), second.First())
 	}
-	if beyond, _ := f.svc.List(ctx, everything, item.KindSSM, "", -3); beyond.Page != 1 {
+	if beyond, _ := f.svc.List(ctx, everything, item.KindSSM, "", -3, 0); beyond.Page != 1 {
 		t.Errorf("a negative page should become page 1, got %d", beyond.Page)
 	}
 }
@@ -393,7 +393,7 @@ func TestAccessDeniedHidesTheItem(t *testing.T) {
 	_, err := f.svc.Reveal(ctx, revealer, item.KindSSM, "/apps/payments/db-url", "")
 	wantProblem(t, err, problem.KindNotFound)
 
-	listing, _ := f.svc.List(ctx, revealer, item.KindSSM, "", 1)
+	listing, _ := f.svc.List(ctx, revealer, item.KindSSM, "", 1, 0)
 	for _, s := range listing.Items {
 		if s.Name == "/apps/payments/db-url" {
 			t.Fatal("an item AWS denies platypus is still listed")
@@ -432,7 +432,7 @@ func TestNotes(t *testing.T) {
 	if detail.Note == nil || detail.Note.Body != "DO NOT CHANGE" || detail.Note.UpdatedBy != "dev@example.com" {
 		t.Fatalf("note = %+v", detail.Note)
 	}
-	found, _ := f.svc.List(ctx, lister, item.KindSSM, "do not change", 1)
+	found, _ := f.svc.List(ctx, lister, item.KindSSM, "do not change", 1, 0)
 	if len(found.Items) != 1 || !found.Items[0].HasNote {
 		t.Errorf("search on note text = %+v", found.Items)
 	}
@@ -523,7 +523,7 @@ func TestTerraformManagedItemsCantBeChanged(t *testing.T) {
 	if !detail.TerraformManaged || detail.TerraformReason == "" {
 		t.Errorf("detail = %+v, want it marked as managed by Terraform", detail.TerraformManaged)
 	}
-	listing, _ := f.svc.List(ctx, editor, item.KindSecret, "prod/tf", 1)
+	listing, _ := f.svc.List(ctx, editor, item.KindSecret, "prod/tf", 1, 0)
 	if len(listing.Items) != 1 || !listing.Items[0].TerraformManaged {
 		t.Error("the list should mark the secret as managed by Terraform")
 	}
@@ -615,7 +615,7 @@ func TestEveryMethodDeniesByDefault(t *testing.T) {
 				t.Errorf("%s as %q: err = %v, want not found or forbidden", c.name, subjectName, err)
 			}
 		}
-		listing, err := f.svc.List(ctx, s, item.KindSecret, "", 1)
+		listing, err := f.svc.List(ctx, s, item.KindSecret, "", 1, 0)
 		if err != nil || (subjectName != "list only" && len(listing.Items) != 0) {
 			t.Errorf("List as %q = %d items, %v", subjectName, len(listing.Items), err)
 		}

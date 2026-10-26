@@ -38,6 +38,18 @@ func (q *Queries) AssignPolicyToUser(ctx context.Context, arg AssignPolicyToUser
 	return err
 }
 
+const countPolicies = `-- name: CountPolicies :one
+SELECT count(*) FROM policies p
+WHERE ($1::text = '' OR p.name ILIKE $1 OR p.description ILIKE $1)
+`
+
+func (q *Queries) CountPolicies(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRow(ctx, countPolicies, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPolicy = `-- name: CreatePolicy :one
 INSERT INTO policies (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at, updated_at
 `
@@ -155,6 +167,63 @@ func (q *Queries) ListPolicies(ctx context.Context, search string) ([]ListPolici
 	items := []ListPoliciesRow{}
 	for rows.Next() {
 		var i ListPoliciesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RuleCount,
+			&i.UserCount,
+			&i.TeamCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPoliciesPage = `-- name: ListPoliciesPage :many
+SELECT p.id, p.name, p.description, p.created_at, p.updated_at,
+       (SELECT count(*) FROM policy_rules r WHERE r.policy_id = p.id) AS rule_count,
+       (SELECT count(*) FROM user_policies up WHERE up.policy_id = p.id) AS user_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.policy_id = p.id) AS team_count
+FROM policies p
+WHERE ($1::text = '' OR p.name ILIKE $1 OR p.description ILIKE $1)
+ORDER BY p.name
+LIMIT $3 OFFSET $2
+`
+
+type ListPoliciesPageParams struct {
+	Search    string
+	RowOffset int32
+	MaxRows   int32
+}
+
+type ListPoliciesPageRow struct {
+	ID          int64
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	RuleCount   int64
+	UserCount   int64
+	TeamCount   int64
+}
+
+func (q *Queries) ListPoliciesPage(ctx context.Context, arg ListPoliciesPageParams) ([]ListPoliciesPageRow, error) {
+	rows, err := q.db.Query(ctx, listPoliciesPage, arg.Search, arg.RowOffset, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPoliciesPageRow{}
+	for rows.Next() {
+		var i ListPoliciesPageRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

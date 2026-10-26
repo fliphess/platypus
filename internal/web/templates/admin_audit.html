@@ -93,9 +93,7 @@
     {{- else}}
     <p class="muted">No events match.</p>
     {{- end}}
-    {{- with .OlderLink}}
-    <div class="actions"><a class="button" href="{{.}}">Older events</a></div>
-    {{- end}}
+    {{template "pager" .Pager}}
   </div>
 </div>
 {{end}}

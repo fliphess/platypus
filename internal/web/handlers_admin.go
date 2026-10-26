@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
 	"platypus/internal/audit"
@@ -81,9 +80,6 @@ func (s *Server) orphanedNotes(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// auditPageSize is how many events one page of the audit trail shows.
-const auditPageSize = 100
-
 type auditData struct {
 	Filter        auditFilterForm
 	Events        []db.AuditEvent
@@ -91,10 +87,13 @@ type auditData struct {
 	Outcomes      []audit.Outcome
 	Users         []db.User
 	RetentionDays int
+	Page          int
+	LastPage      int
+	Total         int64
 	// Links keep the current filter. They are built here, already encoded,
 	// because the template would escape a query string a second time.
-	CSVLink   template.URL
-	OlderLink template.URL
+	CSVLink template.URL
+	Pager   pager
 }
 
 // auditFilterForm is the filter as typed in the form, so it can be shown again.
@@ -128,24 +127,29 @@ func parseAuditFilter(r *http.Request) (auditFilterForm, audit.Filter) {
 
 func (s *Server) auditTrail(w http.ResponseWriter, r *http.Request) error {
 	form, filter := parseAuditFilter(r)
-	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
-	events, err := s.services.Trail.List(r.Context(), filter, before, auditPageSize)
+	pageNumber := pageNumber(r)
+	size := pageSize(r)
+	events, total, err := s.services.Trail.Page(r.Context(), filter, pageNumber, int32(size)) //nolint:gosec // pageSizes bounds size
 	if err != nil {
 		return err
 	}
+	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
 	query := auditQuery(form)
 	data := auditData{
 		Filter: form, Events: events, Actions: audit.Actions, Outcomes: audit.Outcomes,
 		RetentionDays: s.settings.AuditRetentionDays,
+		Page:          pageNumber,
+		LastPage:      lastPage,
+		Total:         total,
 		CSVLink:       template.URL("/admin/audit.csv?" + query.Encode()), //nolint:gosec // encoded above
 	}
 	if data.Users, err = s.services.Access.Users(r.Context(), ""); err != nil {
 		return err
 	}
-	if len(events) == auditPageSize {
-		query.Set("before", strconv.FormatInt(events[len(events)-1].ID, 10))
-		data.OlderLink = template.URL("/admin/audit?" + query.Encode()) //nolint:gosec // encoded above
-	}
+	// Paging links keep the filter; the CSV link above exports all of it.
+	data.Pager = newPager("/admin/audit", "#audit-results",
+		fmt.Sprintf("Page %d of %d · %d events", pageNumber, lastPage, total),
+		r.URL.Query(), pageNumber, lastPage, size)
 	// Filters swap the results in place; the whole page otherwise.
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_audit", "audit-results", data)

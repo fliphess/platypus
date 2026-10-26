@@ -205,11 +205,12 @@ type UserFilter struct {
 	Search string
 	// WithoutAccess keeps only users no policy reaches.
 	WithoutAccess bool
-	// Page is the 1-based page number; the page size is UsersPerPage.
-	Page int
+	// Page is the 1-based page number; PerPage is how many rows it asks for.
+	Page    int
+	PerPage int
 }
 
-// UsersPerPage is how many users the admin list shows per page.
+// UsersPerPage is the default number of users the admin list shows per page.
 const UsersPerPage = 50
 
 // ListedUser is a user with the number of policies that reach them, directly
@@ -226,6 +227,10 @@ func (s *Service) UserList(ctx context.Context, filter UserFilter) ([]ListedUser
 	if err != nil {
 		return nil, 0, problem.Invalid("Search: %v.", err)
 	}
+	perPage := filter.PerPage
+	if perPage <= 0 {
+		perPage = UsersPerPage
+	}
 	params := db.ListUsersWithAccessParams{WithoutAccess: filter.WithoutAccess}
 	if search != "" {
 		escaped := likeEscaper.Replace(strings.ToLower(search))
@@ -238,9 +243,9 @@ func (s *Service) UserList(ctx context.Context, filter UserFilter) ([]ListedUser
 	}
 
 	page := max(filter.Page, 1)
-	page = min(page, 1_000_000) //nolint:gosec // keeps the offset arithmetic in range
-	offset := int32((page - 1) * UsersPerPage)
-	params.MaxRows, params.Skip = UsersPerPage, offset
+	page = min(page, 1_000_000)           //nolint:gosec // keeps the offset arithmetic in range
+	offset := int32((page - 1) * perPage) //nolint:gosec // page and perPage are bounded above
+	params.MaxRows, params.Skip = int32(perPage), offset
 	rows, err := s.queries.ListUsersWithAccess(ctx, params)
 	if err != nil {
 		return nil, 0, err

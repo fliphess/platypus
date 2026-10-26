@@ -7,6 +7,20 @@ FROM policies p
 WHERE (@search::text = '' OR p.name ILIKE @search OR p.description ILIKE @search)
 ORDER BY p.name;
 
+-- name: CountPolicies :one
+SELECT count(*) FROM policies p
+WHERE (@search::text = '' OR p.name ILIKE @search OR p.description ILIKE @search);
+
+-- name: ListPoliciesPage :many
+SELECT p.*,
+       (SELECT count(*) FROM policy_rules r WHERE r.policy_id = p.id) AS rule_count,
+       (SELECT count(*) FROM user_policies up WHERE up.policy_id = p.id) AS user_count,
+       (SELECT count(*) FROM team_policies tp WHERE tp.policy_id = p.id) AS team_count
+FROM policies p
+WHERE (@search::text = '' OR p.name ILIKE @search OR p.description ILIKE @search)
+ORDER BY p.name
+LIMIT @max_rows OFFSET @row_offset;
+
 -- name: GetPolicy :one
 SELECT * FROM policies WHERE id = @id;
 

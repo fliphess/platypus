@@ -4,6 +4,17 @@ FROM teams t
 WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search)
 ORDER BY t.name;
 
+-- name: CountTeams :one
+SELECT count(*) FROM teams t
+WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search);
+
+-- name: ListTeamsPage :many
+SELECT t.*, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+FROM teams t
+WHERE (@search::text = '' OR t.name ILIKE @search OR t.description ILIKE @search)
+ORDER BY t.name
+LIMIT @max_rows OFFSET @row_offset;
+
 -- name: GetTeam :one
 SELECT * FROM teams WHERE id = @id;
 

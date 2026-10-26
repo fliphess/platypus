@@ -83,3 +83,30 @@ func TestCSVCellsCantBeFormulas(t *testing.T) {
 		t.Errorf("cells not neutralised: %q", row)
 	}
 }
+
+// Page returns real pages and the total, which is what the trail's pager
+// needs: no more "older events" chain, and the last page can be computed.
+func TestTrailPage(t *testing.T) {
+	ctx := audit.WithActor(context.Background(), audit.Actor{UserID: 1, Email: "admin@example.com"})
+	pool := dbtest.New(t)
+	q := db.New(pool)
+	recorder := audit.NewRecorder(q, zap.NewNop())
+	trail := audit.NewTrail(q, recorder)
+
+	for i := 0; i < 5; i++ {
+		if err := recorder.Record(ctx, audit.Event{Action: audit.ActionItemView, Outcome: audit.Allowed, Kind: "ssm", Name: "/apps/a"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, total, err := trail.Page(ctx, audit.Filter{}, 1, 2)
+	if err != nil || total != 5 || len(first) != 2 {
+		t.Fatalf("page 1 = %d events of %d, err %v; want 2 of 5", len(first), total, err)
+	}
+	last, total, err := trail.Page(ctx, audit.Filter{}, 3, 2)
+	if err != nil || total != 5 || len(last) != 1 {
+		t.Fatalf("page 3 = %d events of %d, err %v; want 1 of 5", len(last), total, err)
+	}
+	if first[0].ID <= last[0].ID {
+		t.Errorf("pages are not newest first: %d then %d", first[0].ID, last[0].ID)
+	}
+}

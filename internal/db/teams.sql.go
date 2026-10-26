@@ -60,6 +60,18 @@ func (q *Queries) AddUserToGroupTeams(ctx context.Context, arg AddUserToGroupTea
 	return items, nil
 }
 
+const countTeams = `-- name: CountTeams :one
+SELECT count(*) FROM teams t
+WHERE ($1::text = '' OR t.name ILIKE $1 OR t.description ILIKE $1)
+`
+
+func (q *Queries) CountTeams(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRow(ctx, countTeams, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO teams (name, description, idp_group) VALUES ($1, $2, $3) RETURNING id, name, description, created_at, idp_group
 `
@@ -177,6 +189,56 @@ func (q *Queries) ListTeams(ctx context.Context, search string) ([]ListTeamsRow,
 	items := []ListTeamsRow{}
 	for rows.Next() {
 		var i ListTeamsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedAt,
+			&i.IDPGroup,
+			&i.MemberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTeamsPage = `-- name: ListTeamsPage :many
+SELECT t.id, t.name, t.description, t.created_at, t.idp_group, (SELECT count(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+FROM teams t
+WHERE ($1::text = '' OR t.name ILIKE $1 OR t.description ILIKE $1)
+ORDER BY t.name
+LIMIT $3 OFFSET $2
+`
+
+type ListTeamsPageParams struct {
+	Search    string
+	RowOffset int32
+	MaxRows   int32
+}
+
+type ListTeamsPageRow struct {
+	ID          int64
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	IDPGroup    *string
+	MemberCount int64
+}
+
+func (q *Queries) ListTeamsPage(ctx context.Context, arg ListTeamsPageParams) ([]ListTeamsPageRow, error) {
+	rows, err := q.db.Query(ctx, listTeamsPage, arg.Search, arg.RowOffset, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamsPageRow{}
+	for rows.Next() {
+		var i ListTeamsPageRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

@@ -99,15 +99,6 @@
 {{- else}}
 <p class="empty">No users found.</p>
 {{- end}}
-{{- if gt .LastPage 1}}
-<nav class="pager" aria-label="Pages">
-  {{- $query := ""}}
-  {{- if .Search}}{{$query = printf "&q=%s" .Search}}{{end}}
-  {{- if .WithoutAccess}}{{$query = printf "%s&access=none" $query}}{{end}}
-  <span class="muted small">Page {{.Page}} of {{.LastPage}} · {{.Total}} users</span>
-  {{- with .PrevPage}}<a class="button" href="/admin/users?page={{.}}{{$query}}">Previous</a>{{end}}
-  {{- with .NextPage}}<a class="button" href="/admin/users?page={{.}}{{$query}}">Next</a>{{end}}
-</nav>
-{{- end}}
+{{template "pager" .Pager}}
 </div>
 {{end}}

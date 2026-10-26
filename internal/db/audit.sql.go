@@ -11,6 +11,47 @@ import (
 	"time"
 )
 
+const countAuditEvents = `-- name: CountAuditEvents :one
+SELECT count(*) FROM audit_events
+WHERE ($1::timestamptz is null OR occurred_at >= $1::timestamptz)
+  AND ($2::timestamptz is null OR occurred_at < $2::timestamptz)
+  AND ($3::text is null OR actor_email = $3::text)
+  AND ($4::text is null OR action = $4::text)
+  AND ($5::text is null OR outcome = $5::text)
+  AND ($6::text is null
+       OR actor_email ILIKE $6::text
+       OR action ILIKE $6::text
+       OR outcome ILIKE $6::text
+       OR resource_name ILIKE $6::text
+       OR reason ILIKE $6::text
+       OR details::text ILIKE $6::text)
+`
+
+type CountAuditEventsParams struct {
+	Since      *time.Time
+	Until      *time.Time
+	ActorEmail *string
+	Action     *string
+	Outcome    *string
+	Search     *string
+}
+
+// CountAuditEvents counts the events a filter matches, so the trail can show
+// real pages instead of a chain of "older" links.
+func (q *Queries) CountAuditEvents(ctx context.Context, arg CountAuditEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditEvents,
+		arg.Since,
+		arg.Until,
+		arg.ActorEmail,
+		arg.Action,
+		arg.Outcome,
+		arg.Search,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const insertAuditEvent = `-- name: InsertAuditEvent :exec
 INSERT INTO audit_events (actor_id, actor_email, action, outcome, resource_kind, resource_name,
                           reason, client_ip, user_agent, request_id, details)
@@ -89,6 +130,78 @@ func (q *Queries) ListAuditEvents(ctx context.Context, arg ListAuditEventsParams
 		arg.Action,
 		arg.Outcome,
 		arg.Search,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditEvent{}
+	for rows.Next() {
+		var i AuditEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.ActorID,
+			&i.ActorEmail,
+			&i.Action,
+			&i.Outcome,
+			&i.ResourceKind,
+			&i.ResourceName,
+			&i.Reason,
+			&i.ClientIP,
+			&i.UserAgent,
+			&i.RequestID,
+			&i.Details,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAuditEventsPage = `-- name: ListAuditEventsPage :many
+SELECT id, occurred_at, actor_id, actor_email, action, outcome, resource_kind, resource_name, reason, client_ip, user_agent, request_id, details FROM audit_events
+WHERE ($1::timestamptz is null OR occurred_at >= $1::timestamptz)
+  AND ($2::timestamptz is null OR occurred_at < $2::timestamptz)
+  AND ($3::text is null OR actor_email = $3::text)
+  AND ($4::text is null OR action = $4::text)
+  AND ($5::text is null OR outcome = $5::text)
+  AND ($6::text is null
+       OR actor_email ILIKE $6::text
+       OR action ILIKE $6::text
+       OR outcome ILIKE $6::text
+       OR resource_name ILIKE $6::text
+       OR reason ILIKE $6::text
+       OR details::text ILIKE $6::text)
+ORDER BY id DESC
+LIMIT $8 OFFSET $7
+`
+
+type ListAuditEventsPageParams struct {
+	Since      *time.Time
+	Until      *time.Time
+	ActorEmail *string
+	Action     *string
+	Outcome    *string
+	Search     *string
+	RowOffset  int32
+	MaxRows    int32
+}
+
+func (q *Queries) ListAuditEventsPage(ctx context.Context, arg ListAuditEventsPageParams) ([]AuditEvent, error) {
+	rows, err := q.db.Query(ctx, listAuditEventsPage,
+		arg.Since,
+		arg.Until,
+		arg.ActorEmail,
+		arg.Action,
+		arg.Outcome,
+		arg.Search,
+		arg.RowOffset,
 		arg.MaxRows,
 	)
 	if err != nil {

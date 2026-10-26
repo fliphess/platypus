@@ -60,6 +60,57 @@ func (t *Trail) List(ctx context.Context, f Filter, beforeID int64, limit int32)
 	return events, nil
 }
 
+// pageParams are the filter fields the page query shares with List.
+func pageParams(f Filter, limit int32, offset int32) db.ListAuditEventsPageParams {
+	params := db.ListAuditEventsPageParams{
+		MaxRows:   limit,
+		RowOffset: offset,
+	}
+	params.Since = f.Since
+	params.Until = f.Until
+	params.ActorEmail = optional(strings.ToLower(f.ActorEmail))
+	params.Action = optional(f.Action)
+	params.Outcome = optional(f.Outcome)
+	if f.Search != "" {
+		params.Search = optional("%" + likeEscaper.Replace(strings.ToLower(f.Search)) + "%")
+	}
+	return params
+}
+
+func countParams(f Filter) db.CountAuditEventsParams {
+	params := db.CountAuditEventsParams{}
+	params.Since = f.Since
+	params.Until = f.Until
+	params.ActorEmail = optional(strings.ToLower(f.ActorEmail))
+	params.Action = optional(f.Action)
+	params.Outcome = optional(f.Outcome)
+	if f.Search != "" {
+		params.Search = optional("%" + likeEscaper.Replace(strings.ToLower(f.Search)) + "%")
+	}
+	return params
+}
+
+// Page returns one page of events and the total number matching f, so the
+// trail can paginate instead of walking "older" links.
+func (t *Trail) Page(ctx context.Context, f Filter, page int, limit int32) ([]db.AuditEvent, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	total, err := t.queries.CountAuditEvents(ctx, countParams(f))
+	if err != nil {
+		return nil, 0, fmt.Errorf("count audit events: %w", err)
+	}
+	offset := int64(page-1) * int64(limit)
+	if offset > 1<<31-1 {
+		offset = 1<<31 - 1
+	}
+	events, err := t.queries.ListAuditEventsPage(ctx, pageParams(f, limit, int32(offset)))
+	if err != nil {
+		return nil, 0, fmt.Errorf("list audit events: %w", err)
+	}
+	return events, total, nil
+}
+
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 func optional(s string) *string {

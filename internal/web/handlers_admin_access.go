@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
@@ -29,6 +30,7 @@ type usersData struct {
 	LastPage       int
 	PrevPage       *int
 	NextPage       *int
+	Pager          pager
 	// ReturnTo is the list's own URL, sent by the per-row forms so an admin
 	// stays on the list.
 	ReturnTo string
@@ -39,20 +41,22 @@ type usersData struct {
 // here at all. Accounts are never created by typing an address
 // (typosquatting): people appear here at their first login.
 func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) error {
-	pageNumber, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	pageNumber := pageNumber(r)
+	size := pageSize(r)
 	filter := access.UserFilter{
-		Search: r.URL.Query().Get("q"), WithoutAccess: r.URL.Query().Get("access") == "none", Page: pageNumber,
+		Search: r.URL.Query().Get("q"), WithoutAccess: r.URL.Query().Get("access") == "none",
+		Page: pageNumber, PerPage: size,
 	}
 	users, total, err := s.services.Access.UserList(r.Context(), filter)
 	if err != nil {
 		return err
 	}
-	lastPage := int(max(total+access.UsersPerPage-1) / access.UsersPerPage)
-	if pageNumber < 1 {
-		pageNumber = 1
-	}
+	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
 	data := usersData{Users: users, Search: filter.Search, WithoutAccess: filter.WithoutAccess,
-		Total: total, Page: pageNumber, LastPage: max(lastPage, 1), ReturnTo: usersReturnTo(filter, pageNumber)}
+		Total: total, Page: pageNumber, LastPage: lastPage, ReturnTo: usersReturnTo(filter, pageNumber)}
+	data.Pager = newPager("/admin/users", "#user-list",
+		fmt.Sprintf("Page %d of %d · %d users", pageNumber, lastPage, total),
+		r.URL.Query(), pageNumber, lastPage, size)
 	if pageNumber > 1 {
 		data.PrevPage = &[]int{pageNumber - 1}[0]
 	}
@@ -87,6 +91,9 @@ func usersReturnTo(filter access.UserFilter, page int) string {
 	}
 	if page > 1 {
 		query.Set("page", strconv.Itoa(page))
+	}
+	if filter.PerPage != DefaultPageSize {
+		query.Set("per_page", strconv.Itoa(filter.PerPage))
 	}
 	if len(query) == 0 {
 		return "/admin/users"
@@ -208,17 +215,29 @@ func (s *Server) newTeamPage(w http.ResponseWriter, r *http.Request) error {
 }
 
 type teamsData struct {
-	Teams  []db.ListTeamsRow
-	Search string
+	Teams    []db.ListTeamsPageRow
+	Search   string
+	Page     int
+	LastPage int
+	Total    int64
+	PrevLink template.URL
+	NextLink template.URL
+	Pager    pager
 }
 
 func (s *Server) adminTeams(w http.ResponseWriter, r *http.Request) error {
 	search := r.URL.Query().Get("q")
-	teams, err := s.services.Access.Teams(r.Context(), search)
+	pageNumber := pageNumber(r)
+	size := pageSize(r)
+	teams, total, err := s.services.Access.TeamsPage(r.Context(), search, pageNumber, size)
 	if err != nil {
 		return err
 	}
-	data := teamsData{Teams: teams, Search: search}
+	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	data := teamsData{Teams: teams, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
+	data.Pager = newPager("/admin/teams", "#team-list",
+		fmt.Sprintf("Page %d of %d · %d teams", pageNumber, lastPage, total),
+		r.URL.Query(), pageNumber, lastPage, size)
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_teams", "team-list", data)
 		return nil
@@ -395,17 +414,29 @@ func (s *Server) deleteTeam(w http.ResponseWriter, r *http.Request) error {
 // Policies
 
 type policiesData struct {
-	Policies []db.ListPoliciesRow
+	Policies []db.ListPoliciesPageRow
 	Search   string
+	Page     int
+	LastPage int
+	Total    int64
+	PrevLink template.URL
+	NextLink template.URL
+	Pager    pager
 }
 
 func (s *Server) adminPolicies(w http.ResponseWriter, r *http.Request) error {
 	search := r.URL.Query().Get("q")
-	policies, err := s.services.Access.Policies(r.Context(), search)
+	pageNumber := pageNumber(r)
+	size := pageSize(r)
+	policies, total, err := s.services.Access.PoliciesPage(r.Context(), search, pageNumber, size)
 	if err != nil {
 		return err
 	}
-	data := policiesData{Policies: policies, Search: search}
+	lastPage := int(max((total+int64(size)-1)/int64(size), 1))
+	data := policiesData{Policies: policies, Search: search, Page: pageNumber, LastPage: lastPage, Total: total}
+	data.Pager = newPager("/admin/policies", "#policy-list",
+		fmt.Sprintf("Page %d of %d · %d policies", pageNumber, lastPage, total),
+		r.URL.Query(), pageNumber, lastPage, size)
 	if isHTMX(r) {
 		s.renderFragment(w, r, http.StatusOK, "admin_policies", "policy-list", data)
 		return nil

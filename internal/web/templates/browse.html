@@ -93,13 +93,7 @@
   </ul>
   {{- end}}
   </div>
-  {{- if .Items}}
-  <nav class="pager" aria-label="Pages">
-    <span class="muted small">{{.First}}–{{.Last}} of {{.Total}}</span>
-    {{- with $.PreviousLink}}<a class="button" href="{{.}}">Previous</a>{{end}}
-    {{- with $.NextLink}}<a class="button" href="{{.}}">Next</a>{{end}}
-  </nav>
-  {{- end}}
+  {{- if .Items}}{{template "pager" $.Pager}}{{end}}
 </div>
 {{- end}}
 {{end}}

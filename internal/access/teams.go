@@ -51,6 +51,35 @@ func (in TeamInput) groupLink() *string {
 
 // Teams lists teams with their member counts, narrowed by the search term
 // (name or description; empty lists all).
+// TeamsPage returns one page of teams and the total matching the search.
+func (s *Service) TeamsPage(ctx context.Context, search string, page, perPage int) ([]db.ListTeamsPageRow, int64, error) {
+	cleaned, err := textclean.Clean(search, textclean.Options{MaxLength: 200})
+	if err != nil {
+		return nil, 0, problem.Invalid("Search: %v.", err)
+	}
+	if page < 1 {
+		page = 1
+	}
+	// Keep the offset arithmetic in range: the pager never asks for a page
+	// this far out, and a crafted ?page= must not overflow.
+	page = min(page, 1_000_000)
+	if perPage <= 0 {
+		perPage = UsersPerPage
+	}
+	pattern := "%" + likeEscaper.Replace(cleaned) + "%"
+	total, err := s.queries.CountTeams(ctx, pattern)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.queries.ListTeamsPage(ctx, db.ListTeamsPageParams{
+		Search: pattern, MaxRows: int32(perPage), RowOffset: int32((page - 1) * perPage), //nolint:gosec // page and perPage are bounded above
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
 func (s *Service) Teams(ctx context.Context, search string) ([]db.ListTeamsRow, error) {
 	cleaned, err := textclean.Clean(search, textclean.Options{MaxLength: 200})
 	if err != nil {
