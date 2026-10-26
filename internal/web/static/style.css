@@ -346,7 +346,7 @@ td.mono-cell, .mono-cell {
 .item-columns, .item-row {
   display: grid;
   /* The name is the field people actually scan: it gets the space. */
-  grid-template-columns: minmax(0, 1fr) var(--item-facts) 4.5rem;
+  grid-template-columns: minmax(0, 1fr) var(--item-facts) 8rem;
   gap: 0.25rem 0.35rem;
   align-items: baseline;
 }
@@ -388,6 +388,7 @@ td.mono-cell, .mono-cell {
 }
 .item-grid .state-cell, .item-grid .note-cell, .item-grid .type-cell { white-space: nowrap; }
 .item-row > .row-edit, .item-columns .head-edit { text-align: right; }
+.item-row > .row-edit { display: flex; justify-content: flex-end; align-items: baseline; gap: 0.35rem; }
 /* The Edit label sits above the button's WORD, not above its box: mirror the
    button's right padding and 1px border, or the two words drift ~10px. */
 .item-columns .head-edit { padding-inline-end: calc(var(--button-pad-x) + 1px); }
@@ -463,24 +464,32 @@ td.mono-cell, .mono-cell {
 .person-line { display: flex; align-items: center; gap: 0.5rem; }
 .person-ident { min-width: 0; }
 /* The row's disclosure: a quiet chevron that says whether it is open. */
+/* The same bare chevron as the row summaries: no circle, no background. */
 .row-toggle {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1rem;
+  height: 1rem;
   padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: none;
+  background: none;
   color: var(--muted);
   line-height: 1;
   cursor: pointer;
 }
-.row-toggle::before { content: "\25B8"; font-size: 0.8rem; }
-.row-toggle[aria-expanded=true]::before { content: "\25BE"; }
-.row-toggle:hover { border-color: var(--muted); color: var(--text); }
+.row-toggle::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform 0.15s ease;
+}
+.row-toggle[aria-expanded=true]::before { transform: rotate(45deg) translate(-1px, -1px); }
+.row-toggle:hover { color: var(--text); }
 /* The opened facts sit under the row, slightly inset so the row stays one unit. */
 .detail-row > td { background: var(--bg); padding: 0.6rem 0.6rem 0.8rem; }
 .detail-row .facts { margin: 0; }
@@ -534,6 +543,17 @@ td.mono-cell, .mono-cell {
   cursor: pointer;
 }
 .link-button:hover { text-decoration: underline; }
+.link-button[data-row-toggle]::after {
+  content: "";
+  display: inline-block;
+  margin-left: 0.35rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg) translateY(-1px);
+}
+.link-button[data-row-toggle][aria-expanded=true]::after { transform: rotate(45deg) translateY(1px); }
 /* The rules row spans the table, so twenty rules read as a table rather than
    squeezing a column. */
 .rules-table th, .rules-table td { padding: 0.35rem 0.6rem; }
@@ -562,6 +582,38 @@ td.mono-cell, .mono-cell {
 .event { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
 .events li:last-child .event { border-bottom: none; }
 .event > summary { cursor: pointer; }
+
+/* One disclosure affordance everywhere: a chevron drawn at a readable size,
+   never the browser's native marker (which reads as a dot at normal zoom). */
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::marker { content: ""; }
+.item-grid, .event-grid, .event-head { position: relative; }
+.item-grid::before, .event-grid::before, .event-head::before {
+  content: "";
+  position: absolute;
+  left: 0.1rem;
+  top: 0.42em;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  /* Closed: points at the row (right). Open: points into the content (down),
+     so the arrow never reads as upside down. */
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+details[open] > .item-grid::before,
+details[open] > .event-grid::before,
+details[open] > .event-head::before {
+  transform: rotate(45deg);
+  top: 0.6em;
+}
+/* The chevron needs room before the first value; header cells take the same
+   inset so the labels stay exactly above the fields. */
+.item-grid > :first-child, .item-columns > span:first-child,
+.event-grid > :first-child, .event-columns > span:first-child { padding-left: 1.05rem; }
+.event-head { padding-left: 1.05rem; }
 .event-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; }
 .event-time { color: var(--muted); font-size: var(--text-small); white-space: nowrap; }
 .event-actor { font-weight: 500; }

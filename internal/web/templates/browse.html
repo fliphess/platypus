@@ -48,7 +48,7 @@
   <p class="muted">{{if .Search}}Nothing matches “{{.Search}}”.{{else}}Nothing here that you can see.{{end}}</p>
   {{- else}}
   <div class="item-columns" aria-hidden="true">
-    <span>Name</span><span>Type</span><span>State</span><span>Note</span><span>Changed</span><span class="head-edit">Edit</span>
+    <span>Name</span><span>Type</span><span>State</span><span>Note</span><span>Changed</span><span class="head-edit">Actions</span>
   </div>
   <ul class="events">
     {{- range .Items}}
@@ -95,7 +95,10 @@
           </dl>
         </div>
       </details>
-      <span class="row-edit">{{template "row-edit" .}}</span>
+      <span class="row-edit">
+        <a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}" aria-label="View {{.Name}}">View</a>
+        {{template "row-edit" .}}
+      </span>
     </li>
     {{- end}}
   </ul>

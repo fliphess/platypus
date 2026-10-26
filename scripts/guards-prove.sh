@@ -19,13 +19,14 @@ trap 'git checkout -- internal cmd database 2>/dev/null || true' EXIT
 mutants=$(cat <<'TABLE'
 utc|internal/web/render.go|viewer.User.Timezone != "local"|viewer.User.Timezone != "local-impossible"|the server rendered UTC
 edit-align|internal/web/static/style.css|padding-inline-end: calc(var(--button-pad-x) + 1px);|padding-inline-end: 0;|the Edit label sits
-pager-row|internal/web/static/style.css|.page-size label {\n  display: inline-flex;|.page-size label {\n  display: block;|the pager is not one aligned row
+pager-row|internal/web/static/style.css|height: 2.1rem;\n  padding: 0;|height: 3rem;\n  padding: 0;|the pager is not one aligned row
 users-header|internal/web/templates/admin_users.html|<th>Status</th>||the users table has
 TABLE
 )
 
 while IFS='|' read -r name file old new expect; do
 	[ -n "$name" ] || continue
+	if [ -n "${GUARDS_PROVE_ONLY:-}" ] && [ "$name" != "$GUARDS_PROVE_ONLY" ]; then continue; fi
 	echo "== mutant: $name ($file)"
 	OLD="$old" NEW="$new" FILE="$file" python3 - <<'PY'
 import os, pathlib

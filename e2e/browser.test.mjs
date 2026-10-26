@@ -515,6 +515,13 @@ await step("layout invariants hold", async () => {
     return header.every((h, i) => cells[i] && Math.abs(h.getBoundingClientRect().x - cells[i].getBoundingClientRect().x) < 2);
   });
   if (!auditAligned) throw new Error("audit header and fields are not aligned");
+  const auditChevron = await page.evaluate(() => {
+    const before = getComputedStyle(document.querySelector("#audit-results .event-grid"), "::before");
+    return { width: parseFloat(before.width), border: before.borderRightWidth };
+  });
+  if (auditChevron.width < 6 || auditChevron.border !== "2px") {
+    throw new Error(`the audit disclosure is a dot, not a chevron: ${JSON.stringify(auditChevron)}`);
+  }
   const outcomeAligned = await page.evaluate(() => {
     const textLeft = (el) => {
       const range = document.createRange();
@@ -600,6 +607,17 @@ await step("layout invariants hold", async () => {
   if ((await page.locator("#results .row-edit a[href^='/ssm/edit']").count()) === 0) {
     throw new Error("rows have no Edit action");
   }
+  if ((await page.locator("#results .row-edit a[href^='/ssm/item?name=']").count()) === 0) {
+    throw new Error("rows have no direct View action");
+  }
+  const chevron = await page.evaluate(() => {
+    const summary = document.querySelector("#results .item-grid");
+    const before = getComputedStyle(summary, "::before");
+    return { width: parseFloat(before.width), border: before.borderRightWidth, marker: getComputedStyle(summary).listStyleType };
+  });
+  if (chevron.width < 6 || chevron.border !== "2px" || chevron.marker !== "none") {
+    throw new Error(`the item disclosure is a dot, not a chevron: ${JSON.stringify(chevron)}`);
+  }
   await page.evaluate(() => document.querySelector("#results .item-row details").setAttribute("open", ""));
   if ((await page.locator("#results .item-row a[href^='/ssm/item?name=']").count()) === 0) {
     throw new Error("the expanded row has no link to the item's page");
@@ -614,7 +632,8 @@ await step("layout invariants hold", async () => {
       return range.getBoundingClientRect().right;
     };
     const header = document.querySelector("#results .item-columns .head-edit");
-    const button = document.querySelector("#results .item-row .row-edit .button");
+    const buttons = document.querySelectorAll("#results .item-row .row-edit .button");
+    const button = buttons[buttons.length - 1];
     return { drift: Math.abs(textRight(header) - textRight(button)) };
   });
   if (editAligned.drift >= 2) throw new Error(`the Edit label sits ${editAligned.drift}px off the Edit button`);
@@ -693,6 +712,13 @@ await step("layout invariants hold", async () => {
       pagerBorder: pager ? getComputedStyle(pager).borderTopWidth : null,
     };
   });
+  const toggleChevron = await page.evaluate(() => {
+    const before = getComputedStyle(document.querySelector("#user-list .row-toggle"), "::before");
+    return { width: parseFloat(before.width), border: before.borderRightWidth };
+  });
+  if (toggleChevron.width < 6 || toggleChevron.border !== "2px") {
+    throw new Error(`the user row toggle is a dot, not a chevron: ${JSON.stringify(toggleChevron)}`);
+  }
   if (separators.rowBorder !== "0px" || !separators.pagerBorder || separators.pagerBorder === "0px") {
     throw new Error(`the users list draws a double separator: ${JSON.stringify(separators)}`);
   }
