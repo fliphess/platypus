@@ -69,12 +69,15 @@ dev: ## Run platypus locally with docker-compose
 .PHONY: dev-reload
 dev-reload: ## Rebuild web/worker and reload the templates (what a code change needs)
 	docker compose up -d --build web worker
+	# Templates are mounted but parsed at startup, and up -d leaves an
+	# unchanged container running: restart so template edits are actually live.
+	docker compose restart web worker
 	# nginx resolves the web container's address once, at startup; a recreated
 	# container gets a new one, so without this reload every page is a 502.
 	docker compose restart dev-proxy
-	@for _ in $$(seq 1 30); do \
+	@for _ in $$(seq 1 60); do \
 		status=$$(curl -s -o /dev/null -w '%{http_code}' http://admin.localhost:8090/ || true); \
-		[ "$$status" != "502" ] && [ -n "$$status" ] && { echo "dev stack ready ($$status)"; exit 0; }; \
+		case "$$status" in 2*|3*) echo "dev stack ready ($$status)"; exit 0;; esac; \
 		sleep 1; \
 	done; \
 	echo "dev stack did not become ready" >&2; exit 1

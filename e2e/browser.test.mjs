@@ -565,25 +565,29 @@ await step("layout invariants hold", async () => {
       return { ok: Math.abs(a.x - b.x) < 2, th: a.x, td: b.x };
     }, [selector, column]);
   };
-  // Item lists: no overflow, the header sits above its fields, and every row
-  // has its way in.
+  // Item lists: a real table. Header cells sit above their cells, rows fit
+  // their card, and every row has its ways in.
   await page.goto(base + "/ssm");
-  await page.waitForSelector("#results .item-grid");
+  await page.waitForSelector("#results table.items-table");
   const items = await page.evaluate(() => {
     const list = document.querySelector("#results");
-    const header = Array.from(document.querySelectorAll("#results .item-columns span"));
-    const cells = Array.from(document.querySelector("#results .item-grid").children)
-      .filter((el) => !el.classList.contains("summary-toggle"));
-    const edit = document.querySelector("#results .item-row > .row-edit");
-    const offsets = cells.map((cell, i) => [Math.round(header[i].getBoundingClientRect().x), Math.round(cell.getBoundingClientRect().x)]);
-    const editOffset = [Math.round(header.at(-1).getBoundingClientRect().x), Math.round(edit.getBoundingClientRect().x)];
+    const table = list.querySelector("table.items-table");
+    const headers = Array.from(table.querySelectorAll("thead th"));
+    const cells = Array.from(table.querySelectorAll("tbody tr.item-row:first-of-type > td"));
+    const offsets = headers.map((h, i) => [Math.round(h.getBoundingClientRect().x), i < cells.length ? Math.round(cells[i].getBoundingClientRect().x) : null]);
     return {
       overflow: list.scrollWidth - list.clientWidth,
-      aligned: offsets.every(([h, c]) => Math.abs(h - c) < 2) && Math.abs(editOffset[0] - editOffset[1]) < 2,
-      offsets: [...offsets, editOffset],
+      headers: headers.length,
+      cells: cells.length,
+      aligned: offsets.every(([h, c]) => c !== null && Math.abs(h - c) < 2),
+      offsets,
     };
   });
   if (items.overflow > 0) throw new Error(`the item list overflows by ${items.overflow}px`);
+  if (items.headers !== 6 || items.cells !== 6) {
+    throw new Error(`the items table has ${items.headers} headers for ${items.cells} fields`);
+  }
+  if (!items.aligned) throw new Error(`item columns misaligned: ${JSON.stringify(items.offsets)}`);
   const pager = await page.evaluate(() => {
     const steps = document.querySelector(".page-steps");
     const select = document.querySelector(".page-size select");
@@ -600,67 +604,47 @@ await step("layout invariants hold", async () => {
   if (pager.error || pager.row > 2 || new Set(pager.heights).size !== 1 || pager.current !== "1") {
     throw new Error(`the pager is not one aligned row: ${JSON.stringify(pager)}`);
   }
-  if (!items.aligned) throw new Error(`item columns misaligned: ${JSON.stringify(items.offsets)}`);
-  if ((await page.locator("#results .row-edit a[href^='/ssm/edit']").count()) === 0) {
+  if ((await page.locator("#results .row-actions a[href^='/ssm/edit']").count()) === 0) {
     throw new Error("rows have no Edit action");
   }
-  if ((await page.locator("#results .row-edit a[href^='/ssm/item?name=']").count()) === 0) {
+  if ((await page.locator("#results .row-actions a[href^='/ssm/item?name=']").count()) === 0) {
     throw new Error("rows have no direct View action");
   }
   const chevron = await page.evaluate(() => {
-    const toggle = document.querySelector("#results .item-grid .summary-toggle");
+    const toggle = document.querySelector("#results .row-toggle");
     const before = getComputedStyle(toggle, "::before");
     const box = toggle.getBoundingClientRect();
-    return { size: Math.round(box.width), radius: getComputedStyle(toggle).borderRadius,
-             width: parseFloat(before.width), border: before.borderRightWidth };
+    return { size: Math.round(box.width), radius: getComputedStyle(toggle).borderRadius, border: before.borderRightWidth };
   });
   if (chevron.size < 20 || chevron.radius !== "50%" || chevron.border !== "2px") {
     throw new Error(`the item disclosure is not a circled chevron: ${JSON.stringify(chevron)}`);
   }
-  await page.evaluate(() => document.querySelector("#results .item-row details").setAttribute("open", ""));
-  if ((await page.locator("#results .item-row a[href^='/ssm/item?name=']").count()) === 0) {
-    throw new Error("the expanded row has no link to the item's page");
-  }
-  await page.evaluate(() => document.querySelector("#results .item-row details").removeAttribute("open"));
-  // The header's Edit WORD sits exactly above the row's Edit WORD. Comparing
-  // the box edges proved nothing: both boxes end at the column edge.
-  const editAligned = await page.evaluate(() => {
-    const textRight = (el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return range.getBoundingClientRect().right;
+  const firstItemToggle = page.locator("#results .row-toggle").first();
+  await firstItemToggle.click();
+  const itemOpened = await page.evaluate(() => {
+    const row = document.querySelector("#results .detail-row");
+    return {
+      hidden: row?.hasAttribute("hidden"),
+      link: Boolean(row?.querySelector("a[href^='/ssm/item?name=']")),
     };
-    const header = document.querySelector("#results .item-columns .head-edit");
-    const buttons = document.querySelectorAll("#results .item-row .row-edit .button");
-    const button = buttons[buttons.length - 1];
-    return { drift: Math.abs(textRight(header) - textRight(button)) };
   });
-  if (editAligned.drift >= 2) throw new Error(`the Edit label sits ${editAligned.drift}px off the Edit button`);
-  const sameLine = await page.evaluate(() => {
-    const name = document.querySelector("#results .item-name").getBoundingClientRect();
-    const button = document.querySelector("#results .item-row .row-edit .button").getBoundingClientRect();
-    return { nameTop: name.top, nameBottom: name.bottom, buttonTop: button.top, buttonBottom: button.bottom };
-  });
-  if (sameLine.buttonTop > sameLine.nameBottom || sameLine.buttonBottom < sameLine.nameTop) {
-    throw new Error(`the Edit action is on another line: ${JSON.stringify(sameLine)}`);
-  }
-  const nested = await page.evaluate(() =>
-    document.querySelectorAll("summary a, summary button, summary input, summary select, summary textarea").length);
-  if (nested > 0) throw new Error(`${nested} interactive elements are inside a <summary>`);
+  if (itemOpened.hidden || !itemOpened.link) throw new Error(`the item detail row did not open: ${JSON.stringify(itemOpened)}`);
+  await firstItemToggle.click();
+
   // Rows fit their card at every width: nothing paints past its edge.
   for (const width of [1280, 1216, 1152, 1088, 1024, 960, 900]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(base + "/ssm");
-    await page.waitForSelector("#results .item-grid");
+    await page.waitForSelector("#results table.items-table");
     const fits = await page.evaluate(() => {
       const card = document.querySelector("#results .card");
-      const row = document.querySelector("#results .item-grid");
+      const table = document.querySelector("#results table.items-table");
       const cardBox = card.getBoundingClientRect();
-      const outside = [...row.children].filter((cell) => {
+      const outside = Array.from(table.querySelectorAll("td")).filter((cell) => {
         const box = cell.getBoundingClientRect();
         return box.width > 0 && box.right > cardBox.right - 1;
       }).length;
-      return { outside, overflow: row.scrollWidth - row.clientWidth };
+      return { outside, overflow: table.scrollWidth - table.clientWidth };
     });
     if (fits.outside > 0 || fits.overflow > 0) {
       throw new Error(`item rows bleed out of the card at ${width}px: ${JSON.stringify(fits)}`);
@@ -668,16 +652,16 @@ await step("layout invariants hold", async () => {
   }
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(base + "/ssm");
-  await page.waitForSelector("#results .item-grid");
+  await page.waitForSelector("#results table.items-table");
 
-  // The Edit action and the moment must never overlap, whatever the locale.
+  // The actions and the moment never overlap.
   const noOverlap = await page.evaluate(() => {
-    const row = document.querySelector("#results .item-grid");
-    const edit = document.querySelector("#results .item-row > .row-edit").getBoundingClientRect();
-    const when = row.querySelector(".event-time").getBoundingClientRect();
-    return when.right <= edit.left + 1;
+    const row = document.querySelector("#results tr.item-row");
+    const when = row.querySelector("td.when").getBoundingClientRect();
+    const actions = row.querySelector("td.row-actions").getBoundingClientRect();
+    return when.right <= actions.left + 1;
   });
-  if (!noOverlap) throw new Error("the Edit action overlaps the timestamp");
+  if (!noOverlap) throw new Error("the actions overlap the timestamp");
 
   // People lists (users, team members) never overflow their card either.
   await page.goto(base + "/admin/users");
@@ -839,7 +823,7 @@ await step("documentation screenshots", async () => {
 
   await shoot("01-home", "/", ".welcome");
   await shoot("02-ssm-list", "/ssm", "#results .item-row");
-  await page.click("#results .item-grid");
+  await page.click("#results .row-toggle");
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${out}/03-ssm-row.png` });
   console.log("shot 03-ssm-row");

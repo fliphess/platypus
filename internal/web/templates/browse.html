@@ -47,62 +47,67 @@
   {{- if not .Items}}
   <p class="muted">{{if .Search}}Nothing matches “{{.Search}}”.{{else}}Nothing here that you can see.{{end}}</p>
   {{- else}}
-  <div class="item-columns" aria-hidden="true">
-    <span>Name</span><span>Type</span><span>State</span><span>Note</span><span>Changed</span><span class="head-edit">Actions</span>
-  </div>
-  <ul class="events">
-    {{- range .Items}}
-    <li class="item-row">
-      <details class="event">
-        <summary class="item-grid">
-          <span class="summary-toggle" aria-hidden="true"></span>
-          <span class="mono item-name" title="{{.Name}}">{{breakPath .Name}}</span>
-          <span class="type-cell">{{with .SSMType}}<span class="badge">{{.}}</span>{{else}}<span class="muted">secret</span>{{end}}</span>
-          <span class="state-cell">
-            {{- if .DeletedAt}}<span class="badge danger">deleted</span>{{end}}
-            {{- if .TerraformManaged}}<span class="badge terraform">Terraform</span>{{end}}
-            {{- if .RotationEnabled}}<span class="badge warn">rotation</span>{{end}}
-          </span>
-          <span class="note-cell">{{if .HasNote}}<span class="badge note" title="Has a note">note</span>{{end}}</span>
-          <span class="event-time">{{time .LastModified}}</span>
-        </summary>
-        <div class="event-body">
-          <dl class="facts">
-            <dt>Path</dt><dd class="mono path-value" title="{{.Name}}">{{breakPath .Name}}</dd>
-            <dt>Description</dt><dd>{{with .Description}}{{.}}{{else}}<span class="muted">none</span>{{end}}</dd>
-            {{- with .Note}}
-            <dt>Note</dt><dd class="note-preview">{{.Body}}</dd>
-            {{- end}}
-            {{- if eq .Kind "ssm"}}
-            <dt>Type</dt><dd><span class="badge">{{.SSMType}}</span></dd>
-            <dt>Tier</dt><dd><span class="badge">{{.SSMTier}}</span></dd>
-            {{- else}}
-            <dt>Type</dt><dd><span class="badge">secret</span></dd>
-            {{- end}}
-            {{- if eq .Kind "secret"}}
-            <dt>Rotation</dt><dd>{{if .RotationEnabled}}enabled{{else}}off{{end}}</dd>
-            <dt>ARN</dt><dd class="mono small">{{.SecretARN}}</dd>
-            {{- end}}
-            <dt class="only-narrow">Actions</dt>
-            <dd class="only-narrow">
-              <a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}">View details</a>
-              {{template "row-edit" .}}
-            </dd>
-            <dt>Last changed</dt><dd>{{time .LastModified}}</dd>
-            <dt>Open</dt>
-            <dd><a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}">View details</a></dd>
-            {{- if .TerraformManaged}}<dt>Managed by</dt><dd>Terraform</dd>{{end}}
-            {{- if .DeletedAt}}<dt>Deleted</dt><dd>{{time .DeletedAt}}</dd>{{end}}
-          </dl>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Name</th><th>Type</th><th>State</th><th>Note</th><th>Changed</th>
+        <th class="row-actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+    {{- range $i, $item := .Items}}
+    <tr class="item-row">
+      <td class="name-cell">
+        <div class="name-line">
+          <button type="button" class="row-toggle" data-row-toggle aria-expanded="false"
+                  aria-controls="item-detail-{{$i}}" aria-label="Show details for {{$item.Name}}"></button>
+          <span class="mono item-name" title="{{$item.Name}}">{{breakPath $item.Name}}</span>
         </div>
-      </details>
-      <span class="row-edit">
-        <a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}" aria-label="View {{.Name}}">View</a>
-        {{template "row-edit" .}}
-      </span>
-    </li>
+      </td>
+      <td class="type-cell">{{with $item.SSMType}}<span class="badge">{{.}}</span>{{else}}<span class="muted">secret</span>{{end}}</td>
+      <td class="state-cell">
+        {{- if $item.DeletedAt}}<span class="badge danger">deleted</span>{{end}}
+        {{- if $item.TerraformManaged}}<span class="badge terraform">Terraform</span>{{end}}
+        {{- if $item.RotationEnabled}}<span class="badge warn">rotation</span>{{end}}
+      </td>
+      <td class="note-cell">{{if $item.HasNote}}<span class="badge note" title="Has a note">note</span>{{end}}</td>
+      <td class="when">{{time $item.LastModified}}</td>
+      <td class="row-actions">
+        <span class="actions">
+          <a class="button small" href="/{{kindPath $item.Kind}}/item?name={{$item.Name}}" aria-label="View {{$item.Name}}">View</a>
+          {{template "row-edit" $item}}
+        </span>
+      </td>
+    </tr>
+    <tr class="detail-row" id="item-detail-{{$i}}" hidden>
+      <td colspan="6">
+        <dl class="facts">
+          <dt>Path</dt><dd class="mono path-value" title="{{$item.Name}}">{{breakPath $item.Name}}</dd>
+          <dt>Description</dt><dd>{{with $item.Description}}{{.}}{{else}}<span class="muted">none</span>{{end}}</dd>
+          {{- with $item.Note}}
+          <dt>Note</dt><dd class="note-preview">{{.Body}}</dd>
+          {{- end}}
+          {{- if eq $item.Kind "ssm"}}
+          <dt>Type</dt><dd><span class="badge">{{$item.SSMType}}</span></dd>
+          <dt>Tier</dt><dd><span class="badge">{{$item.SSMTier}}</span></dd>
+          {{- else}}
+          <dt>Type</dt><dd><span class="badge">secret</span></dd>
+          {{- end}}
+          {{- if eq $item.Kind "secret"}}
+          <dt>Rotation</dt><dd>{{if $item.RotationEnabled}}enabled{{else}}off{{end}}</dd>
+          <dt>ARN</dt><dd class="mono small">{{$item.SecretARN}}</dd>
+          {{- end}}
+          <dt>Last changed</dt><dd>{{time $item.LastModified}}</dd>
+          <dt>Open</dt>
+          <dd><a class="button small" href="/{{kindPath $item.Kind}}/item?name={{$item.Name}}">View details</a></dd>
+          {{- if $item.TerraformManaged}}<dt>Managed by</dt><dd>Terraform</dd>{{end}}
+          {{- if $item.DeletedAt}}<dt>Deleted</dt><dd>{{time $item.DeletedAt}}</dd>{{end}}
+        </dl>
+      </td>
+    </tr>
     {{- end}}
-  </ul>
+    </tbody>
+  </table>
   {{- end}}
   </div>
   {{- if .Items}}{{template "pager" $.Pager}}{{end}}
