@@ -258,10 +258,13 @@ func TestSecrets(t *testing.T, s store.Secrets) {
 	t.Run("update description", func(t *testing.T) {
 		name := uniqueName("storetest/description/")
 		created := mustCreateSecret(t, s, name, "v1")
-		if err := s.UpdateDescription(ctx, name, "stale", "stale-version"); !errors.Is(err, store.ErrConflict) {
+		if err := s.UpdateDescription(ctx, name, "stale", "stale-version", created.Description); !errors.Is(err, store.ErrConflict) {
 			t.Errorf("UpdateDescription with a stale version: %v, want ErrConflict", err)
 		}
-		if err := s.UpdateDescription(ctx, name, "new description", created.CurrentVersionID); err != nil {
+		if err := s.UpdateDescription(ctx, name, "stale", created.CurrentVersionID, "another description"); !errors.Is(err, store.ErrConflict) {
+			t.Errorf("UpdateDescription with a stale description: %v, want ErrConflict", err)
+		}
+		if err := s.UpdateDescription(ctx, name, "new description", created.CurrentVersionID, created.Description); err != nil {
 			t.Fatalf("UpdateDescription: %v", err)
 		}
 		described, err := s.Describe(ctx, name)

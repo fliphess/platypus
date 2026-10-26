@@ -100,6 +100,9 @@ func (p *Parameters) Tags(_ context.Context, name string) (map[string]string, er
 	if !ok {
 		return nil, store.ErrNotFound
 	}
+	if err := p.access.check(name); err != nil {
+		return nil, err
+	}
 	return maps.Clone(param.tags), nil
 }
 
@@ -131,6 +134,9 @@ func (p *Parameters) History(_ context.Context, name string) ([]store.ParameterV
 	if !ok {
 		return nil, store.ErrNotFound
 	}
+	if err := p.access.check(name); err != nil {
+		return nil, err
+	}
 	history := make([]store.ParameterVersion, 0, len(param.versions))
 	for i := len(param.versions) - 1; i >= 0; i-- {
 		history = append(history, param.versions[i].meta)
@@ -159,6 +165,9 @@ func (p *Parameters) Update(_ context.Context, u store.ParameterUpdate) (store.P
 	param, ok := p.params[u.Name]
 	if !ok {
 		return store.Parameter{}, store.ErrNotFound
+	}
+	if err := p.access.check(u.Name); err != nil {
+		return store.Parameter{}, err
 	}
 	if param.meta.Version != u.ExpectVersion {
 		return store.Parameter{}, store.ErrConflict
@@ -356,6 +365,9 @@ func (s *Secrets) Versions(_ context.Context, name string) ([]store.SecretVersio
 	if !ok {
 		return nil, store.ErrNotFound
 	}
+	if err := s.access.check(name); err != nil {
+		return nil, err
+	}
 	var versions []store.SecretVersion
 	for i := len(sec.versions) - 1; i >= 0; i-- {
 		if v := sec.versions[i].meta; len(v.Stages) > 0 {
@@ -393,6 +405,9 @@ func (s *Secrets) PutValue(_ context.Context, name string, value sensitive.Value
 	if !ok {
 		return store.Secret{}, store.ErrNotFound
 	}
+	if err := s.access.check(name); err != nil {
+		return store.Secret{}, err
+	}
 	if sec.meta.CurrentVersionID != expectVersionID {
 		return store.Secret{}, store.ErrConflict
 	}
@@ -400,14 +415,17 @@ func (s *Secrets) PutValue(_ context.Context, name string, value sensitive.Value
 	return cloneSecret(sec.meta), nil
 }
 
-func (s *Secrets) UpdateDescription(_ context.Context, name, description, expectVersionID string) error {
+func (s *Secrets) UpdateDescription(_ context.Context, name, description, expectVersionID, expectDescription string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sec, ok := s.secrets[name]
 	if !ok {
 		return store.ErrNotFound
 	}
-	if sec.meta.CurrentVersionID != expectVersionID {
+	if err := s.access.check(name); err != nil {
+		return err
+	}
+	if sec.meta.CurrentVersionID != expectVersionID || sec.meta.Description != expectDescription {
 		return store.ErrConflict
 	}
 	sec.meta.Description = description
@@ -420,6 +438,9 @@ func (s *Secrets) Restore(_ context.Context, name, versionID, expectVersionID st
 	sec, ok := s.secrets[name]
 	if !ok {
 		return store.ErrNotFound
+	}
+	if err := s.access.check(name); err != nil {
+		return err
 	}
 	if sec.meta.CurrentVersionID != expectVersionID {
 		return store.ErrConflict

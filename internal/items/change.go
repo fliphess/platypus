@@ -47,6 +47,9 @@ type Change struct {
 	SSMType       string
 	SSMTier       string
 	ExpectVersion string
+	// ExpectDescription is the description the form showed, so two people
+	// editing metadata don't silently overwrite each other.
+	ExpectDescription string
 }
 
 // Summary describes a change for the confirmation step. It never holds values.
@@ -250,22 +253,38 @@ func (s *Service) updateParameter(ctx context.Context, c Change) error {
 }
 
 func (s *Service) updateSecret(ctx context.Context, entry catalog.Entry, c Change) error {
-	expect := c.ExpectVersion
 	if c.Value != nil {
 		// Platypus doesn't support binary secrets; don't overwrite one.
 		if _, err := s.secrets.Value(ctx, c.Name, ""); err != nil {
 			return err
 		}
-		updated, err := s.secrets.PutValue(ctx, c.Name, *c.Value, expect)
-		if err != nil {
+	}
+	// Metadata first: a stale description then stops the change before the
+	// value is written.
+	written := []string{}
+	if c.Description != entry.Description {
+		if err := s.secrets.UpdateDescription(ctx, c.Name, c.Description, c.ExpectVersion, c.ExpectDescription); err != nil {
 			return err
 		}
-		expect = updated.CurrentVersionID
+		written = append(written, "description")
 	}
-	if c.Description != entry.Description {
-		return s.secrets.UpdateDescription(ctx, c.Name, c.Description, expect)
+	if c.Value != nil {
+		if _, err := s.secrets.PutValue(ctx, c.Name, *c.Value, c.ExpectVersion); err != nil {
+			return s.recordPartial(ctx, c, written, err)
+		}
 	}
 	return nil
+}
+
+// recordPartial records what a failed change did write, so the trail matches
+// AWS instead of showing nothing at all (Q05).
+func (s *Service) recordPartial(ctx context.Context, c Change, written []string, cause error) error {
+	if len(written) > 0 {
+		s.audit.RecordBestEffort(ctx, audit.Event{Action: audit.ActionItemUpdate, Outcome: audit.Error,
+			Kind: string(c.Kind), Name: c.Name, Reason: "the change was only partly written",
+			Details: map[string]any{"changed": written, "from_version": c.ExpectVersion}})
+	}
+	return cause
 }
 
 // prepareUpdate checks permissions and input and returns the current entry
@@ -286,6 +305,9 @@ func (s *Service) prepareUpdate(ctx context.Context, subject authz.Subject, c Ch
 	}
 	if c.ExpectVersion == "" {
 		return catalog.Entry{}, Change{}, problem.Invalid("The edit form is outdated; reload the page.")
+	}
+	if c.Kind == item.KindSecret && c.ExpectDescription != entry.Description {
+		return catalog.Entry{}, Change{}, problem.Conflict("The description changed since you opened the form; reload it and try again.")
 	}
 
 	description, err := cleanDescription(c.Description)

@@ -182,8 +182,10 @@ type Secrets interface {
 	// version the user started from (ErrConflict otherwise).
 	PutValue(ctx context.Context, name string, value sensitive.Value, expectVersionID string) (Secret, error)
 	// UpdateDescription changes the description without a new version. It
-	// returns ErrConflict when the current version isn't expectVersionID.
-	UpdateDescription(ctx context.Context, name, description, expectVersionID string) error
+	// returns ErrConflict when the current version isn't expectVersionID, or
+	// when the description is no longer expectDescription: two people editing
+	// the same metadata must not silently overwrite each other.
+	UpdateDescription(ctx context.Context, name, description, expectVersionID, expectDescription string) error
 	// Restore makes an earlier version current again, without handling the
 	// value at all. expectVersionID works as in PutValue.
 	Restore(ctx context.Context, name, versionID, expectVersionID string) error

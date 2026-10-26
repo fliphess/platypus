@@ -149,13 +149,14 @@ func (s *Secrets) PutValue(ctx context.Context, name string, value sensitive.Val
 	return s.Describe(ctx, name)
 }
 
-// UpdateDescription checks the expected version first, like PutValue.
-func (s *Secrets) UpdateDescription(ctx context.Context, name, description, expectVersionID string) error {
+// UpdateDescription checks the expected version and the description the form
+// showed first, like PutValue.
+func (s *Secrets) UpdateDescription(ctx context.Context, name, description, expectVersionID, expectDescription string) error {
 	current, err := s.Describe(ctx, name)
 	if err != nil {
 		return err
 	}
-	if current.CurrentVersionID != expectVersionID {
+	if current.CurrentVersionID != expectVersionID || current.Description != expectDescription {
 		return store.ErrConflict
 	}
 	_, err = s.client.UpdateSecret(ctx, &secretsmanager.UpdateSecretInput{

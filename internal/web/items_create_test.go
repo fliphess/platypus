@@ -78,3 +78,28 @@ func TestDescriptionRequired(t *testing.T) {
 		t.Errorf("the value changed without a description: %q", value.Reveal())
 	}
 }
+
+// A description form is tied to the description it showed: saving it after
+// someone else changed the description is a conflict, not a silent overwrite
+// (Q02).
+func TestDescriptionFingerprint(t *testing.T) {
+	h := newHarness(t)
+	secret := h.bootstrap()
+	h.elevate(secret)
+	h.addSecret("prod/payments/db", "v1")
+	h.grant(admin, access.RuleInput{Kind: item.KindSecret, Pattern: "prod/*",
+		Permissions: authz.Permissions{Edit: true, List: true}})
+
+	form := url.Values{"name": {"prod/payments/db"}, "format": {"json"},
+		"description": {"Payments database"}, "expect_description": {""},
+		"expect_version": {h.secretVersion("prod/payments/db")}}
+	first := h.post("/secrets/edit", admin, form)
+	h.expect(first, http.StatusOK)
+
+	// The same form again still has the expected version (the value didn't
+	// change), but its description is stale.
+	stale := h.post("/secrets/edit", admin, form)
+	if stale.status != http.StatusConflict {
+		t.Fatalf("a stale description form = %d, want 409:\n%s", stale.status, stale.body)
+	}
+}

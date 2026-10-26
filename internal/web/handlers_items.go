@@ -417,13 +417,14 @@ func newItemFromForm(r *http.Request, kind item.Kind) items.NewItem {
 
 func changeFromForm(r *http.Request, kind item.Kind) items.Change {
 	change := items.Change{
-		Kind:          kind,
-		Name:          r.PostFormValue("name"),
-		IsJSON:        isJSONFormat(r),
-		Description:   r.PostFormValue("description"),
-		SSMType:       r.PostFormValue("ssm_type"),
-		SSMTier:       r.PostFormValue("ssm_tier"),
-		ExpectVersion: r.PostFormValue("expect_version"),
+		Kind:              kind,
+		Name:              r.PostFormValue("name"),
+		IsJSON:            isJSONFormat(r),
+		Description:       r.PostFormValue("description"),
+		SSMType:           r.PostFormValue("ssm_type"),
+		SSMTier:           r.PostFormValue("ssm_tier"),
+		ExpectVersion:     r.PostFormValue("expect_version"),
+		ExpectDescription: r.PostFormValue("expect_description"),
 	}
 	// An empty value field means: keep the current value.
 	if value := valueFromForm(r); !value.IsEmpty() {
