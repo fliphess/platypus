@@ -1,16 +1,8 @@
 # Screenshots
 
-Captured from the browser-test stack, so the data is demo data (example.com
-addresses, fake values). They are 1280px wide, light theme, without the
-test-mode banner.
-
-Regenerate them with:
-
-```
-make screenshots
-```
-
-That runs the browser suite and writes `docs/images/*.png`.
+A tour of the Platypus interface, captured with demonstration data. Images
+use the light theme at 1280 pixels wide, with the test-mode banner hidden.
+All addresses and values are examples.
 
 ## Overview
 
@@ -20,13 +12,13 @@ That runs the browser suite and writes `docs/images/*.png`.
 
 ![The parameter list](images/02-ssm-list.png)
 
-Rows are one aligned table: name, type, state, note, last changed, and the
-actions. The disclosure on the left opens the row.
+The list shows each parameter's name, type, state, note, and last change.
+Expand a row to view its details.
 
 ![An expanded parameter row](images/03-ssm-row.png)
 
-The expanded row shows the full path, description, type and tier, an explicit
-link to the item's own page, and its note when it has one.
+Expanded rows show the full path, description, type, tier, and note, with a
+link to the parameter's page.
 
 ## Secrets
 
@@ -38,9 +30,8 @@ link to the item's own page, and its note when it has one.
 
 ![A user's page](images/06-user-detail.png)
 
-Teams and directly assigned policies are dropdown lines: attached entries are
-one line each, "Add team" and "Add policy" add a line, and a dropdown only
-offers entries that are not attached already.
+Manage team membership and directly assigned policies from the user's page.
+"Add team" and "Add policy" offer entries that have not already been assigned.
 
 ## Teams
 
@@ -48,8 +39,8 @@ offers entries that are not attached already.
 
 ![A team's page](images/08-team-detail.png)
 
-Members can be added with "Add member" and a dropdown of people not on the
-team. The team's policies use the same editor as the user page.
+"Add member" lets you select an account that is not already on the team.
+Team policies use the same assignment controls as the user page.
 
 ## Policies
 
@@ -57,7 +48,7 @@ team. The team's policies use the same editor as the user page.
 
 ![The policy editor](images/10-policy-editor.png)
 
-The rule editor previews what the rules match before saving.
+Preview which items each rule matches before saving a policy.
 
 ## Audit trail
 
@@ -66,3 +57,13 @@ The rule editor previews what the rules match before saving.
 ## Documentation
 
 ![The in-app documentation](images/12-docs.png)
+
+## Updating these images
+
+Run the browser suite with screenshot capture enabled:
+
+```sh
+make screenshots
+```
+
+The command writes the images to `docs/images/`.

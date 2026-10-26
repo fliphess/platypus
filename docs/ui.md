@@ -1,109 +1,109 @@
 # UI conventions
 
-How platypus looks and behaves, so every change fits the whole. Read this
-before touching a template. The rules are short on purpose; when a change
-can't follow them, the design is wrong, not the rules.
+These guidelines keep the Platypus interface consistent across pages. Use the
+shared components below when designing or updating a view, and document new
+variants here so other contributors can reuse them.
 
-## Principles
+## Page structure
 
-1. One skeleton per page: a page head, a toolbar, content, a pager — in that
-   order. Nothing renders outside it.
-2. Two navigation levels, ever: the tabs in the header, and the section
-   links inside the admin area. Anything finer is a control in a toolbar,
-   never another row of tabs.
-3. One component per job, defined once, listed below. A new variant needs a
-   reason written here.
-4. No layout jumps: content that appears on demand opens in a dialog or
-   swaps inside its own container. The page only changes height through
-   pagination.
-5. Every list paginates. Monospaced type is for identifiers and values only.
-   Badges show state, not decoration. Long text truncates instead of
-   stretching layouts.
-6. No nagging: no banners, counters or cards that ask for a visit. State is
-   shown where you act on it. The only full-width interruptions are the
-   block notice and errors, because they stop action rather than request it.
-7. Destructive actions confirm in a dialog that names the consequence. Empty
-   states say what to do next. Errors name the field they are about.
-8. People are picked from lists of known accounts, never typed as free-text
-   email addresses: a typo in a typed address hands access to the wrong
-   person.
+Pages follow a common order: heading, toolbar, content, and pagination.
+Place one primary action to the right of the title, and secondary actions
+alongside the content they affect, such as a table row or card. Keep toolbar
+controls in one row and content in a single table or stack of cards.
 
-## The page skeleton
+Navigation has two levels: the main tabs in the header and section links
+within the admin area. Use toolbar controls for more specific views and
+filters. Search and filters apply immediately, without a separate Filter
+button.
 
-- **Page head**: the title, with the page's one primary action at the right.
-  Secondary actions live where they act (a row, a card), not here.
-- **Toolbar**: the search box, view switches (segmented links) and filters,
-  in one row. Everything in a toolbar applies immediately; there is no
-  Filter button anywhere.
-- **Content**: one table or one stack of cards. Tables carry row actions,
-  quiet and right-aligned, on the row's line.
-- **Pager**: below content, carrying the current query.
+Lists use pagination. Keep table widths within their cards, including dense
+views, so columns remain visible without horizontal page scrolling. Views
+within the same area share a page width.
 
-## Components
+## Interaction and content
 
-- `search`: the toolbar search box. Live: results refresh while typing
-  (debounced), the address bar follows, Enter still works without scripts.
-- `picker`: a type-ahead over known accounts (a datalist over users). Used
-  wherever a person is chosen. Never an open email field.
-- `filter group`: date inputs, selects and text inputs in the toolbar that
-  apply on change.
-- `data table`: the shared table spec. Column types carry their rules:
-  identifiers (`.mono-cell`, `.cell-name`) are monospaced, one line, ellipsis
-  with the full text in a tooltip; moments (`.when`) never wrap; state
-  (`.state-cell`) is badges on one line in their own column; descriptions
-  clip with a tooltip; row actions (`.row-actions`) sit right-aligned on the
-  row's middle. Headers align with cells because they share the types.
-  Anything an ellipsis clips carries a `title` with the full text. Tables
-  FIT their card (fixed column widths where a table is dense): the page
-  never scrolls sideways and no column is pushed out of sight. Every view of
-  an area shares one page width.
-- `form grid`: labels above their own input, inside a `.field` wrapper;
-  actions (Save/Cancel) live at the foot of the form's card, never floating
-  between cards. Fields whose purpose could look like a login carry
-  `autocomplete="off"` and `data-1password-ignore`. Fields revealed by a
-  checkbox are emptied when hidden, so stale values can't submit.
-- `pager`: previous/next with a count, preserving the query.
-- `dialog`: for confirmations with consequences and for anything that would
-  otherwise resize the page.
-- `dropout rows`: the shape for people and events (users, team members,
-  audit trail, orphaned notes). The summary line is a row of facts that wraps
-  freely — nothing is ever clipped — and clicking the line opens the complete
-  record underneath (native `details`/`summary`, no scripts). Tables are for
-  reference lists of short identifiers (items, teams, policies, versions); a
-  free-text or people column belongs in a dropout row instead.
-- `empty state`: one muted sentence that says what to do next.
-- `stat`: a number with a label, linked to its list. Used on the home page.
-- `status page`: logo, title, one sentence, one action. Used for logged out,
-  blocked, no access, disabled, locked, not found.
+- Keep content stable when revealing details. Use a dialog or update the
+  relevant container without shifting unrelated controls. Reserve changes
+  in page height for pagination.
+- Reserve monospaced text for identifiers and values. Use badges to show
+  state, and truncate long table text with the full text available in a
+  tooltip.
+- Confirm destructive actions in a dialog that explains the consequence.
+- Give empty states a clear next step and associate validation errors with
+  the affected field.
+- Select people from known accounts when assigning access. Do not use
+  free-text email fields for these assignments: a typo can grant access to
+  the wrong person.
+- Show status where users can act on it. Reserve full-width notices for
+  conditions that prevent work, such as blocked access or errors.
+
+## Shared components
+
+| Component | Purpose and behaviour |
+| --- | --- |
+| Search | Debounced results update while typing, with the query reflected in the address bar. Enter also works without JavaScript. |
+| Person picker | Type-ahead selection from known accounts, used when choosing a person. |
+| Filter group | Date fields, selects, and text inputs in the toolbar; changes apply immediately. |
+| Data table | Reference lists with aligned column types and actions on each row. See the column conventions below. |
+| Form grid | Labels above inputs in a `.field` wrapper, with Save and Cancel at the bottom of the form card. |
+| Pager | Previous and next controls with a count, preserving the current query. |
+| Dialog | Confirmation of consequential actions and interactions that would otherwise disrupt the page. |
+| Expandable record | A summary of a person or event, with the full record available on expansion. |
+| Empty state | One muted sentence explaining the next step. |
+| Statistic | A number and label linked to the relevant list, used on the overview. |
+| Status page | Logo, title, one explanatory sentence, and one action for logged-out, blocked, no-access, disabled, locked, or not-found states. |
+
+### Table columns
+
+- Identifiers (`.mono-cell`, `.cell-name`) use monospaced text on one line.
+  Truncate with an ellipsis and a `title` containing the full text.
+- Timestamps (`.when`) do not wrap.
+- State (`.state-cell`) uses badges on one line in a dedicated column.
+- Descriptions truncate with the full text in a tooltip.
+- Row actions (`.row-actions`) align to the right and sit vertically centred.
+- Headers follow the same alignment as their cells. Use fixed column widths
+  where needed to keep dense tables within their cards.
+
+Use expandable records for longer text about people and events, such as
+team membership, audit events, and orphaned notes. Summaries wrap without
+clipping. Native `details` and `summary` elements provide expansion without
+JavaScript. Tables suit reference lists of short identifiers, such as items,
+teams, policies, and versions.
+
+### Forms
+
+Fields that could be mistaken for credentials use `autocomplete="off"` and
+`data-1password-ignore` to avoid password-manager prompts. Clear fields when
+a checkbox hides them so stale values cannot be submitted.
 
 ## Notifications
 
-There is one status line under the header, never a stack of banners: the
-most important state wins (blocked above test mode). It is a slim strip in
-the warning tone, not a card. Transient confirmations ("saved", "admin mode
-off", "value hidden again") are small toasts in the bottom right that fade
-out by themselves and never replay on reload. Anything that asks the user
-to go look at another page is forbidden.
+Use one status line below the header. When multiple states apply, show the
+most important one; blocked access takes precedence over test mode. Style it
+as a slim warning strip.
+
+Transient confirmations, such as a saved change or an expired reveal, appear
+as small toasts in the bottom right. They fade automatically and do not
+reappear after a reload. Do not use banners, counters, cards, or notifications
+to prompt visits to another page.
 
 ## Theme
 
-Native controls (date pickers, scrollbars, form controls) follow the theme
-via `color-scheme`; nothing ships a custom-styled native control. Inline
-code (`code`) is for identifiers and setting names: a quiet chip, never a
-heading. Test mode and blocked state both use the orange warning tone.
+Native controls follow the theme through `color-scheme`. Retain native date
+pickers, scrollbars, and form controls. Inline `code` styling identifies
+setting names and other identifiers within text. Test mode and blocked
+access share the orange warning tone.
 
-## Scripting rules
+## JavaScript
 
-htmx binds the content it swaps itself; anything this app's own scripts
-insert into the page must call `htmx.process` on the inserted node, or it
-sits inert. Password managers must not open on fields that are not
-credentials: fields get `autocomplete="off"` and `data-1password-ignore`
-when their name or purpose could look like a login.
+htmx initialises content it swaps into the page. Application scripts that
+insert content must call `htmx.process` on the inserted node so its htmx
+behaviour is active.
 
-## Process
+## Reviewing interface changes
 
-Every interface change reuses this inventory (or adds a justified entry to
-it), keeps the tests and browser run green, and refreshes its screenshot in
-`e2e/shots/` so the result is visible without running the app.
-
-Screenshots of every view: [screenshots.md](screenshots.md).
+Reuse the shared components and document any new variants. Run the relevant
+tests and browser suite, review captures in `e2e/shots/`, and refresh the
+[documentation screenshots](screenshots.md) with `make screenshots` when
+the documented interface changes. Use `make visual` to compare changes
+against the committed visual baselines.

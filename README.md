@@ -1,121 +1,126 @@
 # Platypus
 
-A web UI to manage SSM parameters and Secrets Manager secrets, so people don't
-need AWS access to change them. Only platypus has the AWS permissions; people
-get exactly the access their policies grant, and everything they do is in the
-audit trail.
+Platypus is a web application for managing AWS Systems Manager Parameter Store
+parameters and Secrets Manager secrets. Teams can update application
+configuration through a shared interface without needing direct AWS access.
+Policies control access, and an audit trail records every action.
 
-- Login with your identity provider: platypus logs people in itself (OIDC), or
-  works behind a login proxy that sends a signed token or a trusted header.
-- Policies grant `list`, `create`, `edit` and `reveal` on name patterns, to
-  teams or to single users. Values are hidden unless a policy allows revealing.
-- Admins confirm admin mode with a passkey or authenticator app. Admin mode
-  doesn't give access to values.
-- Values never reach the database, the logs or error messages.
+- Sign in with your identity provider through OpenID Connect or an
+  authentication proxy.
+- Grant teams or individual users permission to list, create, edit, or reveal
+  items by name pattern. Values stay hidden until explicitly revealed.
+- Require a passkey or authenticator app for administrative actions. Admin
+  mode does not grant access to values.
+- Keep parameter and secret values out of the database, logs, and error
+  messages.
 
-The in-app docs explain how to use it. `docs/` holds the threat model, the
-deployment checklist and how to report a security issue.
+See the [screenshots](docs/screenshots.md) for a tour of the interface. The
+in-app documentation covers everyday use, access policies, and administration.
 
-## Run it locally
+## Try it locally
 
-You need Docker. Nothing else: no AWS account, no login provider.
+The local environment uses Docker Compose, an AWS emulator, and test users.
+You do not need an AWS account or an identity provider. The bootstrap command
+also requires Make.
 
 ```sh
 docker compose up --build
-make dev-bootstrap-token    # in another terminal
 ```
 
-Open <http://admin.localhost:8090>, enter the token, set up an authenticator
-app and finish the setup. <http://editor.localhost:8090> and
-<http://nobody.localhost:8090> are two more users. A small nginx stands in for
-the gateway and sets the identity header per hostname; the AWS emulator
-(ministack) holds fake parameters and secrets from `deploy/dev/seed.sh`.
-
-To try `oidc` mode, with Dex as the identity provider, add `127.0.0.1 dex` to
-`/etc/hosts` (your browser has to reach Dex by the name platypus uses), run
-`docker compose --profile oidc up --build` and open <http://localhost:8094>.
-Log in as `olivia@example.com` with password `platypus-dev`.
-
-## Install
-
-- Image: `ghcr.io/fliphess/platypus`, amd64 and arm64. Pin a release with
-  `ghcr.io/fliphess/platypus:<version>`; `latest` follows `main`.
-- Chart: `helm install platypus oci://ghcr.io/fliphess/charts/platypus --version <version> -f my-values.yaml`
-  (or `charts/platypus` from this repository). `latest` is the moving build
-  of `main`; pin a version for production.
-- Binaries: every release has `platypus_<version>_<os>_<arch>.tar.gz` for linux
-  and darwin, amd64 and arm64, with checksums. Unpack it and run `./platypus web`;
-  the templates, static files and docs pages stay next to the binary.
-- From source: with Go 1.26 or newer, `make build`, or cross-compile with
-  `GOOS` and `GOARCH`: `GOOS=linux GOARCH=arm64 go build ./cmd/platypus`.
-  See `docs/assets.md` for the runtime files a bare binary needs.
-
-## Develop
+In another terminal, retrieve the setup token:
 
 ```sh
-make test-deps   # Postgres and the AWS emulator in Docker
-make test        # all tests, with the race detector
-make lint        # golangci-lint and govulncheck
-make generate    # after changing SQL queries or configuration variables
-make smoke       # the whole stack from an empty database
-make e2e         # browser tests (Playwright in Docker), including passkeys and oidc mode
+make dev-bootstrap-token
 ```
 
-Layout:
+Open <http://admin.localhost:8090>, enter the token, and follow the setup
+steps to register an authenticator app. Two additional test users are
+available at <http://editor.localhost:8090> and <http://nobody.localhost:8090>.
+The local proxy assigns an identity to each hostname, and the AWS emulator
+contains sample parameters and secrets.
 
-- `cmd/platypus`: the binary: `web`, `worker`, `reset-bootstrap`.
-- `internal/app`: wires everything together.
-- `internal/web`: handlers, middleware, templates and static files (htmx).
-- `internal/items`: list, view, reveal, create, edit, roll back, notes.
-- `internal/authz`: the permission rules (pure, no I/O).
-- `internal/access`: users, teams, policies.
-- `internal/mfa`, `internal/lockout`, `internal/session`, `internal/bootstrap`: admin mode and setup.
-- `internal/store`: the AWS interface; `awsstore` (SDK) and `memstore` (tests) both pass `storetest`.
-- `internal/catalog`, `internal/itemsync`, `internal/worker`: the metadata cache and the jobs that fill it.
-- `internal/audit`: the audit trail.
-- `internal/sensitive`: the type every value lives in; it never prints its contents.
-- `internal/docs/pages`, `internal/web/templates`, `internal/web/static`: the runtime files the binary loads from disk.
-- `database/migrations/updates`: Flyway migrations. `database/migrations/bootstrap`: database and roles for container Postgres.
-- `database/queries`: SQL for sqlc, generated into `internal/db`.
-- `charts/platypus`: the Helm chart; no dependencies.
-
-Configuration is environment variables only; `internal/docs/pages/90-configuration.txt`
-lists all of them and is generated from `internal/config`. The interface is read
-from disk at startup, not compiled in: templates (`internal/web/templates`),
-static files (`internal/web/static`), docs pages (`internal/docs/pages`). Running
-the binary outside Docker means setting `PLATYPUS_TEMPLATES_DIR`,
-`PLATYPUS_STATIC_DIR` and `PLATYPUS_DOCS_DIR`, or keeping the three directories
-next to it; `docs/assets.md` explains how it works.
-
-## Deploy
-
-The Helm chart in `charts/platypus` has no dependencies. You need:
-
-- Postgres. Create the database and an application role (see
-  `database/migrations/bootstrap/init.sql` for what that looks like) and run the
-  Flyway migrations in `database/migrations/updates` before each deploy.
-- An AWS role for platypus (IRSA or EKS Pod Identity) with SSM and Secrets
-  Manager access; platypus never needs delete permissions.
-- A login, set with `PLATYPUS_AUTH_MODE`: `oidc` (platypus logs people in with
-  your identity provider; works behind any Ingress), `signed-header` (a login
-  proxy such as Google IAP, Cloudflare Access or Pomerium sends a signed token)
-  or `header` (a login proxy such as oauth2-proxy sets a header, which the
-  gateway must strip from incoming requests). `docs/deployment-checklist.md`
-  has the details; read `docs/threat-model.md` too.
+To try OpenID Connect with Dex, add `127.0.0.1 dex` to `/etc/hosts`, then run:
 
 ```sh
-helm install platypus charts/platypus -f my-values.yaml
+docker compose --profile oidc up --build
 ```
 
-`charts/platypus/ci/` has example values: a minimal setup, oidc mode behind an
-Ingress, and EKS with kgateway, oauth2-proxy and External Secrets. After every
-deploy, `scripts/post-deploy-check.sh <url> <mode>` checks that unauthenticated
-requests and forged identity headers don't get in.
+Open <http://localhost:8094> and sign in as `olivia@example.com` with the
+development password `platypus-dev`.
 
-Releases are tagged `v<version>` and publish the image, chart and binaries
-together, after CI for that commit is green. See `CHANGELOG.md` for what
-changed in each one.
+## Installation
+
+Platypus is available as a container image, Helm chart, or release archive.
+Pin a release version for production; `latest` is a moving build of `main`.
+
+- **Container:** `ghcr.io/fliphess/platypus:<version>`, for Linux on amd64
+  and arm64.
+- **Helm chart:** install from the OCI registry with your deployment values:
+
+  ```sh
+  helm install platypus oci://ghcr.io/fliphess/charts/platypus --version <version> -f my-values.yaml
+  ```
+
+- **Binary:** release archives are named
+  `platypus_<version>_<os>_<arch>.tar.gz`, with checksums provided. Linux and
+  macOS builds are available for amd64 and arm64. Extract the archive and run
+  `./platypus web` from its directory after configuring the environment. Keep
+  the included templates, static files, and documentation alongside the binary.
+
+A production deployment needs PostgreSQL, an AWS IAM role, and an identity
+provider or authentication proxy. The Helm chart uses your existing database
+and gateway. Follow the [deployment checklist](docs/deployment-checklist.md)
+for authentication, permissions, migrations, and initial setup. Example Helm
+values are available in [charts/platypus/ci](charts/platypus/ci/).
+
+Configuration uses environment variables. The
+[configuration reference](internal/docs/pages/90-configuration.txt) lists
+every setting and its default. See [runtime files](docs/assets.md) when
+running a binary outside the supplied container image or release archive.
+
+## Documentation
+
+- [Screenshots](docs/screenshots.md): a tour of the application.
+- [Deployment checklist](docs/deployment-checklist.md): requirements and
+  setup for a production deployment.
+- [Threat model](docs/threat-model.md): security boundaries, protections,
+  and accepted risks.
+- [Reporting a security issue](docs/security.md): reporting instructions
+  and the security support policy.
+- [Runtime files](docs/assets.md): templates, static assets, and custom
+  in-app documentation.
+- [UI conventions](docs/ui.md): design and interaction guidelines for
+  contributors.
+
+Release changes are listed in the [changelog](CHANGELOG.md).
+
+## Development
+
+Building from source requires Go 1.26 or newer. Run `make build` to create
+`bin/platypus`. For cross-compilation, set `GOOS` and `GOARCH`, for example:
+
+```sh
+GOOS=linux GOARCH=arm64 go build ./cmd/platypus
+```
+
+The application loads its interface from disk. See [runtime
+files](docs/assets.md) for the directories required to run a source build.
+
+Common development commands:
+
+```sh
+make test-deps   # Start PostgreSQL and the AWS emulator in Docker
+make test        # Run all tests with the race detector
+make lint        # Run golangci-lint and govulncheck
+make generate    # Regenerate code and docs after SQL or configuration changes
+make smoke       # Check startup against a fresh database
+make e2e         # Run browser tests in Docker
+```
+
+Run `make verify` for the full verification suite and `make visual` to
+compare the interface with its visual baselines. Use `make screenshots` to
+refresh the [documentation images](docs/screenshots.md).
 
 ## License
 
-MIT, see `LICENSE`. To report a vulnerability, see `docs/security.md`.
+Platypus is licensed under the [MIT License](LICENSE).

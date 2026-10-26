@@ -1,38 +1,36 @@
 # Reporting a security issue
 
-Platypus guards access to secrets, so reports are welcome and taken seriously.
-This is a spare-time project: there is no company behind it, no security team
-on call and no bug bounty. If you depend on platypus for anything serious,
-plan your own monitoring and rollback around it.
+Security reports are welcome. Platypus is maintained in spare time, without
+a dedicated security team, guaranteed response time, or bug bounty programme.
+Production operators should maintain their own monitoring and rollback
+procedures.
 
-## How to report
+## Submit a report
 
-Open an issue on the repository tracker of the forge you found platypus on
-(GitHub, GitLab, Codeberg: they all work the same for this). A merge request
-with a fix is just as welcome as the report.
+Open an issue on the repository where you obtained Platypus. Include:
 
-Please:
+- A title beginning with `security:`.
+- The affected version or commit.
+- A description of the impact and steps to reproduce it using test data.
 
-- Start the title with `security:`.
-- Say which version or commit you tested.
-- Describe how to reproduce it with harmless values. Don't put live secrets,
-  real credentials or a weaponized exploit in a public report; if the problem
-  only shows with sensitive details, say so and share them with whoever picks
-  up the report, in private, once they ask.
+Keep live secrets, credentials, and weaponised exploits out of public
+reports. If reproduction requires sensitive details, mention this in the
+issue and arrange to share them privately when a maintainer responds.
+A pull request with a proposed fix is also welcome.
 
-## What happens next
+## Response and disclosure
 
-Someone who maintains platypus will answer in the issue. Fixes land as regular
-merge requests with a test; disclosure happens in the open, in the same issue.
-There is no embargo process and no coordinated release train — releases come
-when they are ready. Credit is given in the merge request unless you'd rather
-stay unnamed.
+A maintainer will respond in the issue. Fixes are submitted through the
+regular review process with a regression test, and disclosure takes place
+in the issue. There is no embargo process or fixed release schedule.
+Contributors receive credit in the fix unless they request otherwise.
 
 ## Scope
 
-In scope: this repository, the container image built from it, and the Helm
-chart.
+Reports may cover the application code, the published container image, or
+the Helm chart.
 
-Out of scope: weaknesses of a deployment that skips `deployment-checklist.md`
-(for example `header` mode without the gateway stripping identity headers),
-and the accepted risks listed in `threat-model.md`.
+Deployment misconfigurations covered by the [deployment
+checklist](deployment-checklist.md), such as trusting identity headers
+without stripping incoming headers at the gateway, are outside the project's
+security scope. The [threat model](threat-model.md) documents accepted risks.
