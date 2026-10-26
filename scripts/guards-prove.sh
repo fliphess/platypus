@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if [ -n "$(git status --porcelain)" ]; then
+if [ -n "$(git status --porcelain -- internal cmd database)" ]; then
 	echo "guards-prove: commit your work first (it mutates tracked files)" >&2
 	exit 1
 fi
@@ -18,9 +18,9 @@ trap 'git checkout -- internal cmd database 2>/dev/null || true' EXIT
 # name | file | python replacement (old -> new) | text the failing guard prints
 mutants=$(cat <<'TABLE'
 utc|internal/web/render.go|viewer.User.Timezone != "local"|viewer.User.Timezone != "local-impossible"|the server rendered UTC
-edit-align|internal/web/static/style.css|padding-inline-end: calc(var(--button-pad-x) + 1px);|padding-inline-end: 0;|the Edit label sits
-pager-row|internal/web/static/style.css|height: 2.1rem;\n  padding: 0;|height: 3rem;\n  padding: 0;|the pager is not one aligned row
+pager-row|internal/web/static/css/06-audit-pager.css|  width: 2.1rem;\n  height: 2.1rem;\n  padding: 0;\n  line-height: 1;|  width: 2.1rem;\n  height: 3rem;\n  padding: 0;\n  line-height: 1;|the pager is not one aligned row
 users-header|internal/web/templates/admin_users.html|<th>Status</th>||the users table has
+items-header|internal/web/templates/browse.html|<th>Type</th>||the items table has
 TABLE
 )
 
@@ -39,6 +39,11 @@ if before != 1:
     raise SystemExit(f"guard-prove: {path}: {before} matches for the mutation")
 path.write_text(src.replace(old, new))
 PY
+	# CSS lives in small source files now; mutate the source, then regenerate
+	# the served stylesheet so the mutant is what the browser sees.
+	case "$file" in
+		internal/web/static/css/*) ./scripts/build-css.sh ;;
+	esac
 	if make e2e >/tmp/guards-prove.log 2>&1; then
 		echo "MUTANT SURVIVED: $name — the guards did not notice" >&2
 		restore "$file"
@@ -52,6 +57,9 @@ PY
 	fi
 	echo "caught as expected: $expect"
 	restore "$file"
+	case "$file" in
+		internal/web/static/css/*) ./scripts/build-css.sh ;;
+	esac
 done <<< "$mutants"
 
 echo "all mutants caught"
