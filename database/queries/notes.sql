@@ -1,6 +1,9 @@
 -- name: GetNote :one
 SELECT * FROM notes WHERE kind = @kind AND name = @name;
 
+-- name: ListNotesForKind :many
+SELECT * FROM notes WHERE kind = @kind ORDER BY name;
+
 -- name: SaveNote :exec
 INSERT INTO notes (kind, name, body, updated_by)
 VALUES (@kind, @name, @body, @updated_by)

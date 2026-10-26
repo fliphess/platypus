@@ -58,6 +58,36 @@ func (q *Queries) GetNote(ctx context.Context, arg GetNoteParams) (Note, error) 
 	return i, err
 }
 
+const listNotesForKind = `-- name: ListNotesForKind :many
+SELECT kind, name, body, updated_at, updated_by FROM notes WHERE kind = $1 ORDER BY name
+`
+
+func (q *Queries) ListNotesForKind(ctx context.Context, kind string) ([]Note, error) {
+	rows, err := q.db.Query(ctx, listNotesForKind, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Note{}
+	for rows.Next() {
+		var i Note
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Name,
+			&i.Body,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrphanedNotes = `-- name: ListOrphanedNotes :many
 SELECT n.kind, n.name, n.body, n.updated_at, n.updated_by FROM notes n
 LEFT JOIN items i ON n.kind = i.kind AND n.name = i.name AND i.access = 'ok'

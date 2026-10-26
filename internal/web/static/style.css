@@ -372,6 +372,8 @@ td.mono-cell, .mono-cell {
 .item-grid > * { min-width: 0; }
 /* The expanded row shows the whole path, wrapping rather than clipping. */
 .path-value { word-break: normal; overflow-wrap: anywhere; }
+/* A note reads in full in the expanded row: it may be the reason not to edit. */
+.note-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; }
 /* Long paths are the norm: two lines, broken anywhere, before any ellipsis.
    The full path is in the dropdown and in the tooltip regardless. */
 .item-grid .item-name {

@@ -29,6 +29,21 @@ func (c *Catalog) Note(ctx context.Context, kind item.Kind, name string) (*Note,
 	return &Note{Body: row.Body, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt}, nil
 }
 
+// Notes returns every note of one kind, keyed by item name. List pages show
+// note text inline, so a note saying "do not edit" is readable without
+// opening the edit form.
+func (c *Catalog) Notes(ctx context.Context, kind item.Kind) (map[string]Note, error) {
+	rows, err := c.queries.ListNotesForKind(ctx, string(kind))
+	if err != nil {
+		return nil, fmt.Errorf("list notes: %w", err)
+	}
+	notes := make(map[string]Note, len(rows))
+	for _, row := range rows {
+		notes[row.Name] = Note{Body: row.Body, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt}
+	}
+	return notes, nil
+}
+
 // SaveNote stores a note; an empty body removes it.
 func (c *Catalog) SaveNote(ctx context.Context, kind item.Kind, name, body, updatedBy string) error {
 	if body == "" {

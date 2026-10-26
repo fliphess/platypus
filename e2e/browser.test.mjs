@@ -600,6 +600,11 @@ await step("layout invariants hold", async () => {
   if ((await page.locator("#results .row-edit a[href^='/ssm/edit']").count()) === 0) {
     throw new Error("rows have no Edit action");
   }
+  await page.evaluate(() => document.querySelector("#results .item-row details").setAttribute("open", ""));
+  if ((await page.locator("#results .item-row a[href^='/ssm/item?name=']").count()) === 0) {
+    throw new Error("the expanded row has no link to the item's page");
+  }
+  await page.evaluate(() => document.querySelector("#results .item-row details").removeAttribute("open"));
   // The header's Edit WORD sits exactly above the row's Edit WORD. Comparing
   // the box edges proved nothing: both boxes end at the column edge.
   const editAligned = await page.evaluate(() => {

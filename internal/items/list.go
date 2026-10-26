@@ -32,6 +32,9 @@ type Listing struct {
 type ListedItem struct {
 	catalog.Summary
 	TerraformManaged bool
+	// Note is the full note, so the list's detail row can show its text
+	// without opening the edit form.
+	Note *catalog.Note
 }
 
 // First and Last number the items on this page, counting from 1.
@@ -67,10 +70,17 @@ func (s *Service) List(ctx context.Context, subject authz.Subject, kind item.Kin
 		return Listing{}, err
 	}
 
+	notes, err := s.catalog.Notes(ctx, kind)
+	if err != nil {
+		return Listing{}, err
+	}
 	listing := Listing{Kind: kind, Search: search, Page: page, Size: perPage, Total: total,
 		Items: make([]ListedItem, len(found))}
 	for i, summary := range found {
 		listing.Items[i] = ListedItem{Summary: summary, TerraformManaged: s.managedByTerraform(summary.Tags)}
+		if note, ok := notes[summary.Name]; ok {
+			listing.Items[i].Note = &note
+		}
 	}
 
 	// The audit row names what was listed: the list itself, plus the search

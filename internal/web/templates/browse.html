@@ -69,6 +69,9 @@
           <dl class="facts">
             <dt>Path</dt><dd class="mono path-value" title="{{.Name}}">{{breakPath .Name}}</dd>
             <dt>Description</dt><dd>{{with .Description}}{{.}}{{else}}<span class="muted">none</span>{{end}}</dd>
+            {{- with .Note}}
+            <dt>Note</dt><dd class="note-preview">{{.Body}}</dd>
+            {{- end}}
             {{- if eq .Kind "ssm"}}
             <dt>Type</dt><dd><span class="badge">{{.SSMType}}</span></dd>
             <dt>Tier</dt><dd><span class="badge">{{.SSMTier}}</span></dd>
@@ -79,9 +82,14 @@
             <dt>Rotation</dt><dd>{{if .RotationEnabled}}enabled{{else}}off{{end}}</dd>
             <dt>ARN</dt><dd class="mono small">{{.SecretARN}}</dd>
             {{- end}}
-            <dt class="only-narrow">Action</dt>
-            <dd class="only-narrow">{{template "row-edit" .}}</dd>
+            <dt class="only-narrow">Actions</dt>
+            <dd class="only-narrow">
+              <a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}">View details</a>
+              {{template "row-edit" .}}
+            </dd>
             <dt>Last changed</dt><dd>{{time .LastModified}}</dd>
+            <dt>Open</dt>
+            <dd><a class="button small" href="/{{kindPath .Kind}}/item?name={{.Name}}">View details</a></dd>
             {{- if .TerraformManaged}}<dt>Managed by</dt><dd>Terraform</dd>{{end}}
             {{- if .DeletedAt}}<dt>Deleted</dt><dd>{{time .DeletedAt}}</dd>{{end}}
           </dl>
