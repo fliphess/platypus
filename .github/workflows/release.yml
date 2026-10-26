@@ -10,9 +10,27 @@ on:
 permissions:
   contents: write # the release
   packages: write # the image and the chart
+  actions: read # verify the CI run for this commit
 
 jobs:
+  verify:
+    name: CI passed for the tagged commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Require a successful CI run for this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=1" --jq '.workflow_runs[0].conclusion // "none"')"
+          if [ "$conclusion" != "success" ]; then
+            echo "CI for ${sha} is ${conclusion}. Tag a commit whose CI on main is green." >&2
+            exit 1
+          fi
+
   binaries:
+    needs: verify
     name: Binaries (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:
@@ -69,6 +87,7 @@ jobs:
           if-no-files-found: error
 
   image:
+    needs: verify
     name: Image
     runs-on: ubuntu-latest
     steps:
@@ -102,6 +121,7 @@ jobs:
           sbom: true
 
   chart:
+    needs: verify
     name: Chart
     runs-on: ubuntu-latest
     steps:

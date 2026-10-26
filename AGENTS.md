@@ -53,8 +53,10 @@ Platypus loads all three from disk at startup; `PLATYPUS_DOCS_DIR`,
 
 ## Releasing
 
-CI on `main` must be green. Bump `version` and `appVersion` in
-`charts/platypus/Chart.yaml` in the release commit, then tag `vX.Y.Z` and push
-the tag: the release workflow builds the binaries and images for every
-platform, publishes the chart and opens the release with the artifacts
-attached. Binaries get their version from `-ldflags "-X main.version=<tag>"`.
+CI on `main` must be green, and `make verify` plus `make visual` must pass
+locally. Bump `version` and `appVersion` in `charts/platypus/Chart.yaml` in the
+release commit, then tag `vX.Y.Z` and push the tag. The workflow refuses to
+publish unless CI for the tagged commit succeeded; it then builds the binaries
+and images for every platform, publishes the chart and opens the release with
+the artifacts attached. Binaries get their version from
+`-ldflags "-X main.version=<tag>"`.

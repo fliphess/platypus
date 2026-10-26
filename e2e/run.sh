@@ -42,4 +42,4 @@ mkdir -p e2e/shots docs/images
 docker run --rm --network platypus-e2e_default -e BOOTSTRAP_TOKEN="$token" \
   -e DOCS_SHOTS="${DOCS_SHOTS:-}" -e VISUAL="${VISUAL:-}" -e VISUAL_UPDATE="${VISUAL_UPDATE:-}" \
   -v "$PWD/e2e:/work" -v "$PWD/docs/images:/work/docs-images" -v "$PWD/internal/web:/checkout:ro" -w /work "$playwright_image" \
-  bash -c "npm install --silent --no-audit --no-fund && node browser.test.mjs"
+  bash -c "npm ci --silent --no-audit --no-fund && node browser.test.mjs"

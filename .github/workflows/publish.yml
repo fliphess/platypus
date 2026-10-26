@@ -1,26 +1,32 @@
-# Publishes the moving "latest" builds on every merge to main: the container
-# image and the Helm chart. Fixed versions come from release.yml, on a tag.
+# Publishes the moving "latest" builds after CI for that commit passed on
+# main: the container image and the Helm chart. Fixed versions come from
+# release.yml, on a tag.
 name: Publish
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
-# ci.yml tests every push to main; publishing reads the code and writes packages.
 permissions:
   contents: read
   packages: write
+  actions: read
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
 jobs:
   image:
     name: Image (latest)
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -29,7 +35,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Version stamp
-        run: echo "VERSION=dev.${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+        run: echo "VERSION=dev.$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
       - name: Build and push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -43,9 +49,12 @@ jobs:
 
   chart:
     name: Chart (latest)
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -55,7 +64,7 @@ jobs:
       - name: Package and push
         run: |
           version="$(sed -n 's/^version: //p' charts/platypus/Chart.yaml)"
-          dev="${version}-dev.${GITHUB_SHA::7}"
+          dev="${version}-dev.$(git rev-parse --short HEAD)"
           helm package charts/platypus --version "$dev" --app-version latest --destination .
           helm push "platypus-${dev}.tgz" oci://ghcr.io/fliphess/charts
           docker buildx imagetools create \

@@ -64,6 +64,8 @@ jobs:
         run: make vendored-check
       - name: SQL queries are linted (sqlfluff)
         run: make sqlfluff
+      - name: The stylesheet is rebuilt from its parts
+        run: make css-check
 
   chart:
     name: Helm chart

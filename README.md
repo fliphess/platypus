@@ -38,9 +38,11 @@ Log in as `olivia@example.com` with password `platypus-dev`.
 
 ## Install
 
-- Image: `ghcr.io/fliphess/platypus`, amd64 and arm64.
+- Image: `ghcr.io/fliphess/platypus`, amd64 and arm64. Pin a release with
+  `ghcr.io/fliphess/platypus:<version>`; `latest` follows `main`.
 - Chart: `helm install platypus oci://ghcr.io/fliphess/charts/platypus --version <version> -f my-values.yaml`
-  (or `charts/platypus` from this repository).
+  (or `charts/platypus` from this repository). `latest` is the moving build
+  of `main`; pin a version for production.
 - Binaries: every release has `platypus_<version>_<os>_<arch>.tar.gz` for linux
   and darwin, amd64 and arm64, with checksums. Unpack it and run `./platypus web`;
   the templates, static files and docs pages stay next to the binary.
@@ -110,8 +112,9 @@ Ingress, and EKS with kgateway, oauth2-proxy and External Secrets. After every
 deploy, `scripts/post-deploy-check.sh <url> <mode>` checks that unauthenticated
 requests and forged identity headers don't get in.
 
-Images will be published to `ghcr.io/fliphess/platypus`; there are no releases
-yet. Build your own with `docker build .` until then.
+Releases are tagged `v<version>` and publish the image, chart and binaries
+together, after CI for that commit is green. See `CHANGELOG.md` for what
+changed in each one.
 
 ## License
 
