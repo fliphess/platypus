@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.81.0
 	github.com/aws/smithy-go v1.28.6
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/microcosm-cc/bluemonday v1.0.27
@@ -35,7 +36,6 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
